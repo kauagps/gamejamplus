@@ -23,6 +23,9 @@ var modo_construcao: bool = false
 
 @onready var area_interacao: Area2D = $AreaInteracao
 @onready var item_proximo: Item = null
+
+# Área da casa (grupo "abrigo") ao alcance do jogador, se houver
+var casa_proxima: Area2D = null
 @onready var animacao: AnimatedSprite2D = $AnimatedSprite2D  # Referência ao nó de animação
 
 func _physics_process(delta: float) -> void:
@@ -48,8 +51,8 @@ func _physics_process(delta: float) -> void:
 		
 			_atualizar_animacao_parado()
 	
-	if Input.is_action_just_pressed("interagir") and item_proximo != null and not modo_construcao:
-		pegar_item(item_proximo)
+	if Input.is_action_just_pressed("interagir") and not modo_construcao:
+		_tentar_interagir()
 		
 
 func _atualizar_animacao(direcao: Vector2) -> void:
@@ -92,11 +95,38 @@ func _atualizar_animacao_parado() -> void:
 func _on_area_interacao_area_entered(area: Area2D) -> void:
 	if area.is_in_group("item"):
 		item_proximo = area as Item
+		# Dica na tela pra ficar claro o que o E faz
+		if item_proximo != null:
+			dica_interacao.emit("Aperte E para pegar " + item_proximo.nome_do_item)
+	elif area.is_in_group("abrigo"):
+		casa_proxima = area
+		dica_interacao.emit("Aperte E para dormir")
 
 #saiu
 func _on_area_interacao_area_exited(area: Area2D) -> void:
 	if area == item_proximo:
 		item_proximo = null
+	elif area == casa_proxima:
+		casa_proxima = null
+
+# O E é uma tecla só, então ela precisa escolher: pegar o item ou dormir na casa?
+# Regra: quem estiver MAIS PERTO ganha. Assim um item que caia dentro da área da
+# casa continua pegável (senão ficaria preso ali dentro pra sempre).
+func _tentar_interagir() -> void:
+	if item_proximo == null and casa_proxima == null:
+		return
+
+	var usar_item: bool = item_proximo != null
+	if item_proximo != null and casa_proxima != null:
+		var dist_item: float = global_position.distance_to(item_proximo.global_position)
+		var dist_casa: float = global_position.distance_to(casa_proxima.global_position)
+		usar_item = dist_item <= dist_casa
+
+	if usar_item:
+		pegar_item(item_proximo)
+	else:
+		# Não chama a Main: só avisa que o jogador quer dormir
+		dormir_solicitado.emit()
 
 #tentar adicinoar item no inventario
 func pegar_item(item: Item) -> void:

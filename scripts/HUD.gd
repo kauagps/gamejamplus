@@ -154,6 +154,10 @@ func mostrar_aviso(texto: String) -> void:
 func _esconder_aviso() -> void:
 	label_aviso.visible = false
 
+# Dica que o Player manda quando ele chega perto de um item ou da casa
+func _on_Player_dica_interacao(texto: String) -> void:
+	mostrar_aviso(texto)
+
 
 # =====================================================================
 # BARRAS DE VIDA / FOME / SANIDADE

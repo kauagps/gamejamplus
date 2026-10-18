@@ -40,6 +40,11 @@ func _ready() -> void:
 
 	hud.construcao_solicitada.connect(_on_construcao_solicitada)
 
+	# Dormir: o Player só AVISA que apertaram E na casa; quem executa é o Main,
+	# que é o dono do ciclo dia/noite (call down, signal up).
+	if jogador:
+		jogador.dormir_solicitado.connect(dormir)
+
 func _process(_delta: float) -> void:
 	# --- Modo de construção: a prévia (fantasma) segue o jogador ---
 	if fantasma != null:
@@ -70,8 +75,8 @@ func _on_construcao_solicitada(tipo: String) -> void:
 	var cena: PackedScene = receita["cena"]
 	fantasma = cena.instantiate()
 	fantasma.modulate.a = 0.5  # semi-transparente = "ainda não construído"
-	if fantasma is CollisionObject2D:
-		fantasma.collision_layer = 0  # fantasma não bloqueia o jogador
+	# Fantasma: camada 0 = não bloqueia o jogador E não é interagível
+	_definir_colisao(fantasma, 0)
 
 	node_construcoes.add_child(fantasma)
 	construcao_ativa = tipo
@@ -90,8 +95,7 @@ func _confirmar_construcao() -> void:
 
 	# A prévia vira construção de verdade
 	fantasma.modulate.a = 1.0
-	if fantasma is CollisionObject2D:
-		fantasma.collision_layer = 1
+	_definir_colisao(fantasma, 1)
 	fantasma = null
 	construcao_ativa = ""
 
@@ -107,6 +111,15 @@ func _cancelar_construcao() -> void:
 	construcao_ativa = ""
 	if jogador:
 		jogador.modo_construcao = false
+
+# Liga/desliga a colisão de um nó E dos filhos que também colidem (ex: a
+# "AreaDormir" do Abrigo). camada 0 = invisível pra física e pro jogador.
+func _definir_colisao(no: Node, camada: int) -> void:
+	if no is CollisionObject2D:
+		no.collision_layer = camada
+	for filho in no.get_children():
+		if filho is CollisionObject2D:
+			filho.collision_layer = camada
 
 # =====================================================================
 # CICLO DIA / NOITE
