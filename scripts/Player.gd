@@ -9,6 +9,11 @@ signal inventario_alterado(slot_index: int, item_name: String)
 # "call down, signal up": o Player nunca chama a Main diretamente.
 signal dormir_solicitado
 
+# Mesma ideia pra conversa: o Player só diz COM QUEM o jogador quer falar.
+# Quem escolhe a fala do dia (e manda a HUD mostrar) é a Main, que é a dona
+# do dia_atual.
+signal conversa_solicitada(npc: NPC)
+
 # Dica rápida pro HUD ("Aperte E para...") quando algo entra no alcance
 signal dica_interacao(texto: String)
 
@@ -21,17 +26,30 @@ var inventario: Array[String] = ["", "", ""]
 # Enquanto true (modo de construção ativo no Main), o E não pega item
 var modo_construcao: bool = false
 
+# Enquanto true, o jogador está DENTRO de uma conversa: não anda e o E não
+# interage (nesse momento o E é da Main, que avança a fala).
+var conversando: bool = false
+
 @onready var area_interacao: Area2D = $AreaInteracao
 @onready var item_proximo: Item = null
 
 # Área da casa (grupo "abrigo") ao alcance do jogador, se houver
 var casa_proxima: Area2D = null
+
+# NPC ao alcance, se houver (é o pai da AreaConversa que entrou na minha área)
+var npc_proximo: NPC = null
 @onready var animacao: AnimatedSprite2D = $AnimatedSprite2D  # Referência ao nó de animação
 
 func _physics_process(delta: float) -> void:
 	#movimentação
 	
 	var direcao: Vector2 = Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
+
+	# Numa conversa o jogador fica preso no lugar. Como a direção vira zero,
+	# ele continua na animação de parado — ou seja, segue "respirando"
+	# enquanto ouve o NPC.
+	if conversando:
+		direcao = Vector2.ZERO
 
 # 2. Aplica movimento SE NÃO ESTAMOS NO MEIO DE UMA ANIMAÇÃO DE COLETA
 	if direcao != Vector2.ZERO and animacao.animation != "coletando item":
@@ -51,7 +69,7 @@ func _physics_process(delta: float) -> void:
 		
 			_atualizar_animacao_parado()
 	
-	if Input.is_action_just_pressed("interagir") and not modo_construcao:
+	if Input.is_action_just_pressed("interagir") and not modo_construcao and not conversando:
 		_tentar_interagir()
 		
 
@@ -101,6 +119,12 @@ func _on_area_interacao_area_entered(area: Area2D) -> void:
 	elif area.is_in_group("abrigo"):
 		casa_proxima = area
 		dica_interacao.emit("Aperte E para dormir")
+	elif area.is_in_group("npc"):
+		# Quem entra na minha área é a AreaConversa do NPC; o NPC em si é o
+		# pai dela (é onde ficam a chave da fala e o nome mostrado).
+		npc_proximo = area.get_parent() as NPC
+		if npc_proximo != null:
+			dica_interacao.emit("Aperte E para falar com " + npc_proximo.nome_mostrado)
 
 #saiu
 func _on_area_interacao_area_exited(area: Area2D) -> void:
@@ -108,25 +132,40 @@ func _on_area_interacao_area_exited(area: Area2D) -> void:
 		item_proximo = null
 	elif area == casa_proxima:
 		casa_proxima = null
+	elif npc_proximo != null and area.get_parent() == npc_proximo:
+		npc_proximo = null
 
-# O E é uma tecla só, então ela precisa escolher: pegar o item ou dormir na casa?
-# Regra: quem estiver MAIS PERTO ganha. Assim um item que caia dentro da área da
-# casa continua pegável (senão ficaria preso ali dentro pra sempre).
+# O E é uma tecla só, então ela precisa escolher entre os alvos que estão ao
+# mesmo tempo ao alcance: pegar o item, dormir na casa ou conversar com um NPC.
+# Regra: quem estiver MAIS PERTO ganha. Assim um item que caia dentro da área
+# da casa continua pegável (senão ficaria preso ali dentro pra sempre).
 func _tentar_interagir() -> void:
-	if item_proximo == null and casa_proxima == null:
+	# Junta os candidatos: cada um é { "no": nó, "dist": distância até ele }
+	var candidatos: Array[Dictionary] = []
+	if item_proximo != null:
+		candidatos.append({ "no": item_proximo, "dist": global_position.distance_to(item_proximo.global_position) })
+	if casa_proxima != null:
+		candidatos.append({ "no": casa_proxima, "dist": global_position.distance_to(casa_proxima.global_position) })
+	if npc_proximo != null:
+		candidatos.append({ "no": npc_proximo, "dist": global_position.distance_to(npc_proximo.global_position) })
+
+	if candidatos.is_empty():
 		return
 
-	var usar_item: bool = item_proximo != null
-	if item_proximo != null and casa_proxima != null:
-		var dist_item: float = global_position.distance_to(item_proximo.global_position)
-		var dist_casa: float = global_position.distance_to(casa_proxima.global_position)
-		usar_item = dist_item <= dist_casa
+	var escolhido: Dictionary = candidatos[0]
+	for candidato in candidatos:
+		if candidato["dist"] < escolhido["dist"]:
+			escolhido = candidato
 
-	if usar_item:
+	var alvo: Node = escolhido["no"]
+	if alvo == item_proximo:
 		pegar_item(item_proximo)
-	else:
+	elif alvo == casa_proxima:
 		# Não chama a Main: só avisa que o jogador quer dormir
 		dormir_solicitado.emit()
+	else:
+		# Idem: só avisa COM QUEM ele quer falar; a fala do dia é da Main
+		conversa_solicitada.emit(npc_proximo)
 
 #tentar adicinoar item no inventario
 func pegar_item(item: Item) -> void:

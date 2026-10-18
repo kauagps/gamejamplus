@@ -81,6 +81,10 @@ var dormindo: bool = false  # trava: 2 toques no E não podem dormir 2 vezes
 var construcao_ativa: String = ""  # "" = nenhum modo ativo
 var fantasma: Node2D = null        # prévia semi-transparente da construção
 
+# --- Conversa com NPC ---
+var dialogo_ativo: bool = false   # trava: só uma conversa por vez
+var _frame_do_dialogo: int = -1   # ver _atualizar_dialogo (guarda o E do mesmo frame)
+
 func _ready() -> void:
 	# O timer conta SÓ o dia. A noite não tem relógio: ela acaba quando o
 	# jogador dorme (ver _comecar_a_noite).
@@ -97,6 +101,10 @@ func _ready() -> void:
 	if jogador:
 		jogador.dormir_solicitado.connect(dormir)
 
+		# Falar com NPC: mesma ideia. O Player diz COM QUEM; a fala do dia
+		# (que depende do dia_atual, que só o Main conhece) sai daqui.
+		jogador.conversa_solicitada.connect(_on_conversa_solicitada)
+
 	# Clique num slot do inventário = usar o item (comer)
 	hud.slot_usado.connect(_on_slot_usado)
 
@@ -112,6 +120,11 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	atualizar_luz_do_dia(delta)
 	atualizar_pensamentos(delta)
+
+	# --- Conversa com um NPC: durante ela o E é da fala, não do mundo ---
+	if dialogo_ativo:
+		_atualizar_dialogo()
+		return  # e nada de fantasma de construção ao mesmo tempo
 
 	# --- Modo de construção: a prévia (fantasma) segue o jogador ---
 	if fantasma != null:
@@ -146,6 +159,10 @@ func _on_slot_usado(slot_index: int) -> void:
 func _on_construcao_solicitada(tipo: String) -> void:
 	if not RECEITAS.has(tipo):
 		push_error("Main: receita desconhecida: " + tipo)
+		return
+
+	# Conversando não se constrói: o E está ocupado com a fala
+	if dialogo_ativo:
 		return
 
 	_cancelar_construcao()  # se já havia um fantasma, descarta ele
@@ -203,6 +220,62 @@ func _definir_colisao(no: Node, camada: int) -> void:
 	for filho in no.get_children():
 		if filho is CollisionObject2D:
 			filho.collision_layer = camada
+
+# =====================================================================
+# CONVERSA COM NPC
+# =====================================================================
+# O Player só AVISA que apertaram E perto de um NPC. Quem escolhe a fala
+# (de acordo com o dia) e manda a HUD desenhar é a Main, porque só ela
+# conhece o dia_atual. As falas ficam em scripts/Dialogos.gd.
+func _on_conversa_solicitada(npc: NPC) -> void:
+	if npc == null or dialogo_ativo or dormindo:
+		return
+
+	# O Dialogos já resolve o caso "esse dia ainda não foi escrito":
+	# ele repete a última fala escrita, então nunca fica sem nada pra dizer.
+	var paginas: Array = Dialogos.falas(npc.chave, dia_atual)
+	if paginas.is_empty():
+		hud.mostrar_aviso(npc.nome_mostrado + " não tem nada a dizer.")
+		return
+
+	dialogo_ativo = true
+	if jogador:
+		jogador.conversando = true   # o jogador fica parado e o E vira "avançar"
+
+	# O retrato é o próprio quadro do sheet do NPC (esticado pela HUD)
+	hud.abrir_dialogo(npc.nome_mostrado, paginas, npc.retrato())
+
+	# O MESMO toque de E que abriu a conversa também chega aqui como
+	# "acabou de apertar". Guardamos o frame pra ignorá-lo (senão a
+	# primeira fala já apareceria pulada).
+	_frame_do_dialogo = Engine.get_process_frames()
+
+func _atualizar_dialogo() -> void:
+	# Se a caixa sumiu por fora (não deveria acontecer), solta o jogador
+	if not hud.dialogo_aberto():
+		_fechar_dialogo()
+		return
+
+	if Engine.get_process_frames() == _frame_do_dialogo:
+		return  # é o E que abriu a conversa, não um pedido de avançar
+
+	if Input.is_action_just_pressed("ui_cancel"):
+		_fechar_dialogo()  # Esc: sai da conversa na hora
+	elif Input.is_action_just_pressed("interagir"):
+		# avancar_dialogo devolve false quando era a última página
+		if not hud.avancar_dialogo():
+			_fechar_dialogo()
+
+func _fechar_dialogo() -> void:
+	dialogo_ativo = false
+	hud.fechar_dialogo()
+
+	# Espera o próximo frame de física pra devolver o E ao jogador, senão o
+	# MESMO toque que passou a última fala já reabriria a conversa (é o que
+	# a construção faz com o modo_construcao).
+	await get_tree().physics_frame
+	if jogador:
+		jogador.conversando = false
 
 # =====================================================================
 # LUZ DO DIA (amanhecer / anoitecer procedural)

@@ -17,6 +17,10 @@
 [ext_resource type="PackedScene" path="res://cenas/Ovelha.tscn" id="11_ovelha"]
 [ext_resource type="Script" path="res://scripts/LuzGlobal.gd" id="12_luz"]
 [ext_resource type="PackedScene" path="res://cenas/Vinheta.tscn" id="13_vinheta"]
+[ext_resource type="PackedScene" path="res://cenas/NPC.tscn" id="14_npc"]
+[ext_resource type="SpriteFrames" path="res://assets/Player/pai.tres" id="15_pai"]
+[ext_resource type="SpriteFrames" path="res://assets/Player/crianca.tres" id="16_crianca"]
+[ext_resource type="SpriteFrames" path="res://assets/Player/rosa.tres" id="17_rosa"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_o8b3u"]
 texture = ExtResource("2_adoo1")
@@ -300,6 +304,24 @@ position = Vector2(154, 190)
 
 [node name="Ovelha2" parent="Node" instance=ExtResource("11_ovelha")]
 position = Vector2(310, 142)
+
+[node name="Pai" parent="Node" instance=ExtResource("14_npc")]
+position = Vector2(180, 140)
+chave = "pai"
+nome_mostrado = "Pai"
+frames = ExtResource("15_pai")
+
+[node name="Crianca" parent="Node" instance=ExtResource("14_npc")]
+position = Vector2(320, 220)
+chave = "crianca"
+nome_mostrado = "Criança"
+frames = ExtResource("16_crianca")
+
+[node name="Rosa" parent="Node" instance=ExtResource("14_npc")]
+position = Vector2(140, 240)
+chave = "rosa"
+nome_mostrado = "Rosa"
+frames = ExtResource("17_rosa")
 
 [node name="HUD" parent="." unique_id=412191067 instance=ExtResource("3_yihtt")]
 

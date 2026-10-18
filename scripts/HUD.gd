@@ -133,6 +133,7 @@ func _ready() -> void:
 
 	_criar_aviso()
 	_criar_pensamento()
+	_criar_caixa_dialogo()
 
 
 # =====================================================================
@@ -203,6 +204,12 @@ func _criar_pensamento() -> void:
 # O Main chama isso quando o personagem "pensa" algo (o aviso de que a noite
 # está chegando). Fica na tela por alguns segundos e some sozinho.
 func mostrar_pensamento(texto: String, duracao: float = 4.0) -> void:
+	# Durante uma conversa o pensamento apareceria ATRÁS da caixa de diálogo
+	# (os dois ficam no rodapé). Ele é interrompido: a Main insiste de novo
+	# quando for a hora.
+	if caixa_dialogo != null and caixa_dialogo.visible:
+		return
+
 	label_pensamento.text = texto
 	label_pensamento.visible = true
 	timer_pensamento.start(duracao)
@@ -213,6 +220,199 @@ func _esconder_pensamento() -> void:
 # Dica que o Player manda quando ele chega perto de um item ou da casa
 func _on_Player_dica_interacao(texto: String) -> void:
 	mostrar_aviso(texto)
+
+
+# =====================================================================
+# CAIXA DE DIÁLOGO (rodapé) — conversa com NPC
+# =====================================================================
+# Construída por código, igual ao aviso e ao pensamento, pra não precisar
+# editar o HUD.tscn. Ela tem três informações:
+#
+#   [ retrato ]   o próprio quadro do sheet do NPC, ampliado 4x
+#   Nome          quem está falando
+#   Texto         a fala, saindo LETRA POR LETRA (máquina de escrever)
+#
+# A HUD não decide nada: a Main (dona do dia_atual) escolhe as falas e
+# chama abrir_dialogo(). A HUD só desenha e responde se ainda tem página.
+
+# Quantas letras por segundo a máquina de escrever mostra
+const VELOCIDADE_DA_ESCRITA: float = 45.0
+
+var caixa_dialogo: PanelContainer
+var retrato_dialogo: TextureRect
+var nome_dialogo: Label
+var texto_dialogo: Label
+var indicador_dialogo: Label
+
+var _falas_do_dialogo: Array = []
+var _pagina_atual: int = 0
+var _tween_texto: Tween = null
+var _tween_indicador: Tween = null
+
+
+func _criar_caixa_dialogo() -> void:
+	# --- O painel ---
+	caixa_dialogo = PanelContainer.new()
+	caixa_dialogo.name = "CaixaDialogo"  # nome só pra achar no Remote inspector
+	caixa_dialogo.visible = false
+	# Ela não é clicável (avança com E). IGNORE garante que, em outra
+	# resolução, ela nunca roube o clique dos botões ou dos slots.
+	caixa_dialogo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	caixa_dialogo.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	caixa_dialogo.offset_left = 180.0
+	caixa_dialogo.offset_right = -180.0
+	caixa_dialogo.offset_top = -290.0
+	caixa_dialogo.offset_bottom = -50.0
+
+	var fundo := StyleBoxFlat.new()
+	fundo.bg_color = Color(0.05, 0.06, 0.12, 0.92)
+	fundo.border_color = Color(0.55, 0.6, 0.78, 0.9)
+	fundo.set_border_width_all(2)
+	fundo.set_corner_radius_all(10)
+	fundo.set_content_margin_all(18.0)
+	caixa_dialogo.add_theme_stylebox_override("panel", fundo)
+	add_child(caixa_dialogo)
+
+	# --- De dentro: [retrato] | [nome / fala / indicador] ---
+	var linha := HBoxContainer.new()
+	linha.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	linha.add_theme_constant_override("separation", 18)
+	caixa_dialogo.add_child(linha)
+
+	retrato_dialogo = TextureRect.new()
+	retrato_dialogo.name = "Retrato"
+	retrato_dialogo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	retrato_dialogo.custom_minimum_size = Vector2(128, 128)
+	retrato_dialogo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	retrato_dialogo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	# É um quadro de 32x32 do sheet esticado 4x: com Nearest cada pixel
+	# vira um quadrado duro (aí o sheet "vira vetor" no olho).
+	retrato_dialogo.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	linha.add_child(retrato_dialogo)
+
+	var coluna := VBoxContainer.new()
+	coluna.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	coluna.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	linha.add_child(coluna)
+
+	nome_dialogo = Label.new()
+	nome_dialogo.name = "Nome"
+	nome_dialogo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	nome_dialogo.add_theme_color_override("font_color", Color(1.0, 0.85, 0.45))
+	nome_dialogo.add_theme_font_size_override("font_size", 30)
+	coluna.add_child(nome_dialogo)
+
+	texto_dialogo = Label.new()
+	texto_dialogo.name = "Texto"
+	texto_dialogo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	texto_dialogo.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	# Fala longa quebra linha sozinha em vez de vazar da caixa
+	texto_dialogo.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	texto_dialogo.add_theme_color_override("font_color", Color(0.93, 0.95, 1.0))
+	texto_dialogo.add_theme_font_size_override("font_size", 26)
+	coluna.add_child(texto_dialogo)
+
+	indicador_dialogo = Label.new()
+	indicador_dialogo.name = "Indicador"
+	indicador_dialogo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	indicador_dialogo.visible = false
+	indicador_dialogo.text = "▼  aperte E"
+	indicador_dialogo.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	indicador_dialogo.add_theme_color_override("font_color", Color(1.0, 0.85, 0.45))
+	indicador_dialogo.add_theme_font_size_override("font_size", 20)
+	coluna.add_child(indicador_dialogo)
+
+
+# A Main chama isto quando a conversa começa.
+# "paginas" é a lista de falas (cada uma é uma tela da conversa).
+func abrir_dialogo(nome: String, paginas: Array, retrato: Texture2D) -> void:
+	_falas_do_dialogo = paginas
+	_pagina_atual = 0
+
+	nome_dialogo.text = nome
+	retrato_dialogo.texture = retrato
+	retrato_dialogo.visible = (retrato != null)
+
+	# O pensamento do rodapé ficaria atrás da caixa: some enquanto fala
+	_esconder_pensamento()
+
+	caixa_dialogo.visible = true
+	_mostrar_pagina()
+
+
+# Avança uma página. Devolve false quando a conversa acabou — aí quem
+# fecha a caixa é a Main.
+func avancar_dialogo() -> bool:
+	if not caixa_dialogo.visible or _falas_do_dialogo.is_empty():
+		return false
+
+	# Ainda está escrevendo? Então o E só completa a frase (clássico):
+	# o jogador que lê rápido não é obrigado a esperar.
+	if texto_dialogo.visible_characters < _texto_da_pagina().length():
+		_completar_escrita()
+		return true
+
+	if _pagina_atual + 1 < _falas_do_dialogo.size():
+		_pagina_atual += 1
+		_mostrar_pagina()
+		return true
+
+	return false
+
+
+func fechar_dialogo() -> void:
+	caixa_dialogo.visible = false
+	indicador_dialogo.visible = false
+	_falas_do_dialogo = []
+	_pagina_atual = 0
+	if _tween_texto != null:
+		_tween_texto.kill()
+	if _tween_indicador != null:
+		_tween_indicador.kill()
+
+
+func dialogo_aberto() -> bool:
+	return caixa_dialogo.visible
+
+
+func _texto_da_pagina() -> String:
+	if _falas_do_dialogo.is_empty():
+		return ""
+	return str(_falas_do_dialogo[_pagina_atual])
+
+
+func _mostrar_pagina() -> void:
+	var texto: String = _texto_da_pagina()
+	texto_dialogo.text = texto
+	texto_dialogo.visible_characters = 0
+	indicador_dialogo.visible = false
+
+	if _tween_texto != null:
+		_tween_texto.kill()
+
+	# A duração sai do tamanho da fala: frase curta não fica arrastada e
+	# frase longa não sai de uma vez.
+	var duracao: float = maxf(0.2, texto.length() / VELOCIDADE_DA_ESCRITA)
+	_tween_texto = create_tween()
+	_tween_texto.tween_property(texto_dialogo, "visible_characters", texto.length(), duracao)
+	_tween_texto.finished.connect(_on_pagina_escrita)
+
+
+func _on_pagina_escrita() -> void:
+	indicador_dialogo.visible = true
+	if _tween_indicador != null:
+		_tween_indicador.kill()
+	indicador_dialogo.modulate.a = 1.0
+	_tween_indicador = create_tween().set_loops()
+	_tween_indicador.tween_property(indicador_dialogo, "modulate:a", 0.2, 0.5)
+	_tween_indicador.tween_property(indicador_dialogo, "modulate:a", 1.0, 0.5)
+
+
+func _completar_escrita() -> void:
+	if _tween_texto != null:
+		_tween_texto.kill()  # killed não emite "finished"
+	texto_dialogo.visible_characters = _texto_da_pagina().length()
+	_on_pagina_escrita()
 
 
 # =====================================================================
