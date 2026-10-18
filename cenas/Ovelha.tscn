@@ -1,0 +1,27 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/Ovelha.gd" id="1_ovelha"]
+[ext_resource type="SpriteFrames" path="res://assets/Player/ovelha.tres" id="2_frames"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_ovelha"]
+size = Vector2(24, 12)
+
+[node name="Ovelha" type="CharacterBody2D" groups=["ovelha"]]
+motion_mode = 1
+collision_layer = 4
+collision_mask = 1
+script = ExtResource("1_ovelha")
+
+[node name="Animacao" type="AnimatedSprite2D" parent="."]
+position = Vector2(0, -21)
+sprite_frames = ExtResource("2_frames")
+animation = &"parado"
+autoplay = &"parado"
+
+[node name="Colisao" type="CollisionShape2D" parent="."]
+position = Vector2(0, -6)
+shape = SubResource("RectangleShape2D_ovelha")
+
+[node name="TimerPasseio" type="Timer" parent="."]
+wait_time = 3.0
+one_shot = true

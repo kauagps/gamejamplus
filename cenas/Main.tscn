@@ -14,6 +14,7 @@
 [ext_resource type="Texture2D" uid="uid://cdtqrhikclye3" path="res://assets/mapa/mato alto.png" id="8_b5qhr"]
 [ext_resource type="Texture2D" uid="uid://crah5seexifv6" path="res://assets/mapa/cogumelo.png" id="9_ee5ht"]
 [ext_resource type="Texture2D" uid="uid://d3si18j33lx8v" path="res://assets/mapa/arbustro.png" id="10_s3787"]
+[ext_resource type="PackedScene" path="res://cenas/Ovelha.tscn" id="11_ovelha"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_o8b3u"]
 texture = ExtResource("2_adoo1")
@@ -232,7 +233,7 @@ sources/5 = SubResource("TileSetAtlasSource_und73")
 script = ExtResource("1_8tf0g")
 
 [node name="TimerDiaNoite" type="Timer" parent="." unique_id=2093071589]
-wait_time = 5.0
+wait_time = 60.0
 one_shot = true
 
 [node name="LuzGlobal" type="CanvasModulate" parent="." unique_id=187156222]
@@ -273,7 +274,7 @@ position = Vector2(-825, 63)
 scale = Vector2(0.27379483, 0.3274088)
 
 [node name="Item3" parent="Node/Recursos" unique_id=105190430 instance=ExtResource("4_8tf0g")]
-position = Vector2(-825, 63)
+position = Vector2(-718, 60)
 scale = Vector2(0.27379483, 0.3274088)
 
 [node name="Item2" parent="Node/Recursos" unique_id=1450055745 instance=ExtResource("4_8tf0g")]
@@ -285,6 +286,12 @@ nome_do_item = "pedra"
 position = Vector2(-790, 63)
 scale = Vector2(0.27379483, 0.3274088)
 nome_do_item = "comida"
+
+[node name="Ovelha" parent="Node" instance=ExtResource("11_ovelha")]
+position = Vector2(154, 190)
+
+[node name="Ovelha2" parent="Node" instance=ExtResource("11_ovelha")]
+position = Vector2(310, 142)
 
 [node name="HUD" parent="." unique_id=412191067 instance=ExtResource("3_yihtt")]
 
