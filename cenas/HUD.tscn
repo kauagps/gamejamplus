@@ -15,27 +15,21 @@ anchors_preset = 0
 offset_right = 40.0
 offset_bottom = 40.0
 
-[node name="BarraVida" type="AnimatedSprite2D" parent="ContainerPrincipal" unique_id=1092600483]
-position = Vector2(1867, 47)
-scale = Vector2(1.583274, 1.5346357)
-sprite_frames = ExtResource("2_606ks")
-animation = &"sanidade"
-
 [node name="BarraSanidade" type="AnimatedSprite2D" parent="ContainerPrincipal" unique_id=288701091]
-position = Vector2(1867.0001, 85.99999)
-scale = Vector2(1.583274, 1.5346357)
+position = Vector2(1843, 72.999985)
+scale = Vector2(1.9482919, 1.9229128)
 sprite_frames = ExtResource("2_606ks")
 animation = &"sanidade"
 
 [node name="BarraFome" type="AnimatedSprite2D" parent="ContainerPrincipal" unique_id=554376136]
-position = Vector2(1867.0001, 126)
-scale = Vector2(1.583274, 1.5346357)
+position = Vector2(1846.0001, 129.00002)
+scale = Vector2(2.019467, 1.8534832)
 sprite_frames = ExtResource("2_606ks")
 animation = &"fome"
 
 [node name="Dias" type="AnimatedSprite2D" parent="ContainerPrincipal" unique_id=442571777]
-position = Vector2(1750, 38)
-scale = Vector2(1.583274, 1.5346357)
+position = Vector2(1841, 19)
+scale = Vector2(1.8895898, 2.0342267)
 sprite_frames = ExtResource("2_606ks")
 animation = &"dias"
 

@@ -17,7 +17,6 @@ signal slot_usado(slot_index: int)
 
 
 # --- BARRAS (cada frame do sprite = uma porcentagem) ------------------
-@onready var barra_vida: AnimatedSprite2D = $ContainerPrincipal/BarraVida
 @onready var barra_fome: AnimatedSprite2D = $ContainerPrincipal/BarraFome
 @onready var barra_sanidade: AnimatedSprite2D = $ContainerPrincipal/BarraSanidade
 
@@ -38,6 +37,25 @@ var slots: Array[TextureRect] = []
 # Ícones dos botões (placeholders — troque o caminho quando tiver a arte)
 const ICONE_FOGUEIRA := preload("res://assets/items/placeholder.png")
 const ICONE_ABRIGO := preload("res://assets/mapa/House_Yellow.png")
+
+# --- PREÇO DAS CONSTRUÇÕES (a linha embaixo de cada botão) ------------
+# Os botões são só ícones: sem o PREÇO e sem dizer que ali é o menu de
+# construção, o jogador não descobre. Tudo aqui é criado por CÓDIGO (igual
+# ao aviso, ao pensamento e ao painel do barco), então mexer no preço não
+# exige abrir o HUD.tscn.
+#
+# A HUD NÃO conhece as receitas: quem manda nome + custo de cada construção
+# é a Main (dona do RECEITAS), no _ready dela — ver definir_custo_de_construcao.
+const TITULO_DA_CONSTRUCAO: String = "CONSTRUIR"
+const TAMANHO_ICONE_PRECO: float = 26.0
+const COR_DO_PRECO_OK: Color = Color(0.95, 0.96, 1.0)
+const COR_DO_PRECO_FALTA: Color = Color(1.0, 0.5, 0.5)
+const COR_DO_BOTAO_SEM_MATERIAL: Color = Color(0.62, 0.62, 0.68)
+
+# tipo da construção -> Button (o "tipo" é o mesmo do sinal construcao_solicitada)
+var _botoes_de_construcao: Dictionary = {}
+# tipo -> lista das peças do preço: {"item", "precisa", "numero", "icone"}
+var _pecas_do_preco: Dictionary = {}
 
 # --- ÍCONES DOS ITENS -------------------------------------------------
 # Vêm do scripts/CatalogoItens.gd (fonte única de verdade: o mesmo lugar
@@ -88,8 +106,7 @@ var _painel_do_barco_na_tela: bool = false
 func _ready() -> void:
 	# -----------------------------------------------------------------
 	# 1) SINAIS DO AUTOLOAD "STATUS" (vida, fome, sanidade)
-	# -----------------------------------------------------------------
-	Status.vida_alterada.connect(_on_Status_vida_alterada)
+	
 	Status.fome_alterada.connect(_on_Status_fome_alterada)
 	Status.sanidade_alterada.connect(_on_Status_sanidade_alterada)
 
@@ -137,7 +154,6 @@ func _ready() -> void:
 	# -----------------------------------------------------------------
 	# 4) PINTAR O ESTADO ATUAL DAS BARRAS
 	# -----------------------------------------------------------------
-	_atualizar_barra_discreta(barra_vida, Status.vida, Status.vida_maximo)
 	_atualizar_barra_discreta(barra_fome, Status.fome, Status.fome_maximo)
 	_atualizar_barra_discreta(barra_sanidade, Status.sanidade, Status.sanidade_maximo)
 
@@ -153,15 +169,25 @@ func _ready() -> void:
 	# -----------------------------------------------------------------
 	btn_cama.visible = false
 
+	# De qual construção é cada botão. É este mapa que permite a Main mandar
+	# o preço só pelo TIPO ("fogueira") e a HUD saber onde escrever. O tooltip
+	# e a linha de preço de verdade chegam depois, da Main (ver
+	# definir_custo_de_construcao): aqui só o que não depende da receita.
+	_botoes_de_construcao = {
+		"fogueira": btn_fogueira,
+		"abrigo": btn_abrigo,
+	}
+
 	btn_fogueira.icon = ICONE_FOGUEIRA
 	btn_fogueira.expand_icon = true
-	btn_fogueira.tooltip_text = "Fogueira (2 madeira)"
 	btn_fogueira.pressed.connect(_on_btn_fogueira_pressed)
 
 	btn_abrigo.icon = ICONE_ABRIGO
 	btn_abrigo.expand_icon = true
-	btn_abrigo.tooltip_text = "Abrigo (2 madeira + 1 pedra)"
 	btn_abrigo.pressed.connect(_on_btn_abrigo_pressed)
+
+	# O título que avisa que estes botões do topo são pra CONSTRUIR
+	_criar_titulo_da_construcao()
 
 	_criar_aviso()
 	_criar_pensamento()
@@ -177,6 +203,147 @@ func _on_btn_fogueira_pressed() -> void:
 
 func _on_btn_abrigo_pressed() -> void:
 	construcao_solicitada.emit("abrigo")
+
+
+# =====================================================================
+# PREÇO DAS CONSTRUÇÕES (embaixo dos botões do topo)
+# =====================================================================
+# A Main chama isto no _ready dela, uma vez por receita do RECEITAS. A partir
+# daí a HUD sabe o nome, o preço e a descrição de cada botão — e repinta tudo
+# sozinha quando o inventário muda (ver _on_Player_inventario_alterado).
+#
+#   tipo  = a mesma chave do sinal construcao_solicitada ("fogueira")
+#   nome  = como o jogador conhece a construção ("Fogueira")
+#   custo = lista de nomes de item, COM repetição: ["madeira","madeira","pedra"]
+func definir_custo_de_construcao(tipo: String, nome: String, custo: Array) -> void:
+	if not _botoes_de_construcao.has(tipo):
+		# Construção nova no RECEITAS sem botão aqui: melhor avisar do que
+		# ficar em silêncio e o preço nunca aparecer.
+		push_warning("HUD: não tenho botão pra construção '%s'" % tipo)
+		return
+
+	var botao: Button = _botoes_de_construcao[tipo]
+
+	# Agrupa material repetido: ["madeira","madeira","pedra"] vira
+	# [(madeira, 2), (pedra, 1)] — assim aparece "2 madeira" em vez de dois
+	# ícones de madeira lado a lado.
+	var agrupado: Array = []  # Array de [nome_item, quantidade]
+	for item in custo:
+		var achou: bool = false
+		for par in agrupado:
+			if par[0] == item:
+				par[1] += 1
+				achou = true
+				break
+		if not achou:
+			agrupado.append([item, 1])
+
+	# A linha de preço: [ícone]2   [ícone]1
+	var linha := HBoxContainer.new()
+	linha.name = "Preco" + tipo.capitalize()
+	linha.alignment = BoxContainer.ALIGNMENT_CENTER
+	linha.add_theme_constant_override("separation", 10)
+	linha.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	var pecas: Array = []
+	for par in agrupado:
+		pecas.append(_criar_peca_do_preco(linha, par[0], par[1]))
+	_pecas_do_preco[tipo] = pecas
+
+	# Entra no MESMO VBox do botão, logo DEPOIS dele: assim o preço anda
+	# junto se você reordenar os botões no editor (e o BtnCama, escondido,
+	# não atrapalha — container ignora filho invisível).
+	botao.get_parent().add_child(linha)
+	botao.get_parent().move_child(linha, botao.get_index() + 1)
+
+	# A descrição (tooltip) sai do MESMO custo: uma fonte só de verdade —
+	# mudar o RECEITAS no Main muda o preço e o texto de uma vez.
+	botao.tooltip_text = "%s — %s.\nClique pra construir: a prévia aparece à sua frente, E confirma e Esc cancela." % [nome, _texto_do_custo(agrupado)]
+
+	_atualizar_precos()
+
+
+# Uma peça do preço: o ícone do material (a MESMA arte do slot do inventário)
+# e quanto precisa. Devolve o dicionário que o _atualizar_precos repinta.
+func _criar_peca_do_preco(pai: HBoxContainer, item: String, quantidade: int) -> Dictionary:
+	var grupo := HBoxContainer.new()
+	grupo.add_theme_constant_override("separation", 2)
+	pai.add_child(grupo)
+
+	var icone := TextureRect.new()
+	icone.texture = _recortar_arte(CatalogoItens.icone(item))
+	icone.custom_minimum_size = Vector2(TAMANHO_ICONE_PRECO, TAMANHO_ICONE_PRECO)
+	icone.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icone.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icone.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	grupo.add_child(icone)
+
+	var numero := Label.new()
+	numero.text = str(quantidade)
+	numero.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	numero.add_theme_font_size_override("font_size", 22)
+	numero.add_theme_color_override("font_outline_color", Color(0.05, 0.05, 0.09, 0.95))
+	numero.add_theme_constant_override("outline_size", 6)
+	grupo.add_child(numero)
+
+	return {"item": item, "precisa": quantidade, "numero": numero, "icone": icone}
+
+
+# "2 madeira + 1 pedra" (o custo já agrupado, sem repetição)
+func _texto_do_custo(agrupado: Array) -> String:
+	var partes := PackedStringArray()
+	for par in agrupado:
+		partes.append("%d %s" % [par[1], par[0]])
+	return " + ".join(partes)
+
+
+# O título que diz o que aqueles botões do topo fazem. Entra como PRIMEIRO
+# filho do VBox pra empurrar os botões pra baixo dele.
+func _criar_titulo_da_construcao() -> void:
+	var botoes: Control = btn_fogueira.get_parent()
+
+	var titulo := Label.new()
+	titulo.name = "TituloConstruir"  # nome só pra achar no Remote inspector
+	titulo.text = TITULO_DA_CONSTRUCAO
+	titulo.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	titulo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Mesmo esquema do pensamento: cor clara + contorno escuro, pra ler em
+	# cima do mapa (grama, água, árvore) sem precisar de painel atrás.
+	titulo.add_theme_color_override("font_color", Color(0.95, 0.9, 0.7))
+	titulo.add_theme_color_override("font_outline_color", Color(0.05, 0.05, 0.09, 0.95))
+	titulo.add_theme_constant_override("outline_size", 8)
+	titulo.add_theme_font_size_override("font_size", 24)
+	botoes.add_child(titulo)
+	botoes.move_child(titulo, 0)
+
+
+# Repinta o preço conforme a MOCHILA: o material que o John tem fica claro, o
+# que falta fica vermelho e com o ícone apagado — e o botão inteiro escurece
+# um pouco quando não dá pra construir nada. É o que responde "será que eu já
+# posso?" sem o jogador precisar clicar.
+#
+# O botão continua CLICÁVEL de propósito: é o clique que faz a Main mostrar o
+# aviso dourado ("Faltam materiais para X!"), e é assim que o jogador
+# descobre o que ainda falta juntar.
+func _atualizar_precos() -> void:
+	for tipo in _pecas_do_preco:
+		var pode: bool = true
+
+		for peca in _pecas_do_preco[tipo]:
+			# Quem conta a mochila é o Player (quantos_do_tipo), não a HUD:
+			# nada de duas contagens diferentes no projeto.
+			var tenho: int = jogador.quantos_do_tipo(peca["item"]) if jogador else 0
+			var suficiente: bool = tenho >= int(peca["precisa"])
+
+			peca["numero"].add_theme_color_override(
+				"font_color", COR_DO_PRECO_OK if suficiente else COR_DO_PRECO_FALTA)
+			peca["icone"].modulate = Color.WHITE if suficiente else Color(0.55, 0.55, 0.6)
+
+			if not suficiente:
+				pode = false
+
+		var botao: Button = _botoes_de_construcao[tipo]
+		botao.modulate = Color.WHITE if pode else COR_DO_BOTAO_SEM_MATERIAL
 
 
 # =====================================================================
@@ -205,6 +372,14 @@ func mostrar_aviso(texto: String) -> void:
 	timer_aviso.start(2.0)
 
 func _esconder_aviso() -> void:
+	esconder_aviso()
+
+
+# Esconde o aviso NA HORA (e cancela o tempo que faltava). A Main usa quando
+# um modo acaba: o recado dourado ("E constrói · Esc desiste") não vale mais
+# depois do E/Esc, e sem isto ele ficaria 2s na tela dizendo o contrário.
+func esconder_aviso() -> void:
+	timer_aviso.stop()
 	label_aviso.visible = false
 
 
@@ -632,8 +807,6 @@ func _completar_escrita() -> void:
 # =====================================================================
 # BARRAS DE VIDA / FOME / SANIDADE
 # =====================================================================
-func _on_Status_vida_alterada(valor_atual: float, valor_maximo: float) -> void:
-	_atualizar_barra_discreta(barra_vida, valor_atual, valor_maximo)
 
 func _on_Status_fome_alterada(valor_atual: float, valor_maximo: float) -> void:
 	_atualizar_barra_discreta(barra_fome, valor_atual, valor_maximo)
@@ -683,6 +856,11 @@ func atualizar_contador_dias(dia: int) -> void:
 # INVENTÁRIO
 # =====================================================================
 func _on_Player_inventario_alterado(slot_index: int, item_name: String) -> void:
+	# O preço dos botões de construção depende da mochila: repinta já, ANTES
+	# de qualquer saída antecipada (gastar um item pra construir chama aqui
+	# com nome vazio e precisa atualizar o preço do mesmo jeito).
+	_atualizar_precos()
+
 	if slot_index >= slots.size():
 		push_error("HUD: índice de slot inválido: ", slot_index)
 		return

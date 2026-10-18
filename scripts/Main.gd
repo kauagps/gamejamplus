@@ -18,6 +18,14 @@ const CENA_ITEM_NO_CHAO: PackedScene = preload("res://cenas/Item.tscn")
 const RECADO_LARGAR: String = "Clique no item que quer largar (Esc desiste)"
 const INTERVALO_RECADO_LARGAR: float = 1.8
 
+# O mesmo esquema, agora pro modo de construção: a HUD mostra o recado, ele
+# some em 2s e o Main renova enquanto o fantasma estiver na mão do jogador.
+# Sem isso o jogador clica no botão, aparece a prévia... e ninguém diz que o
+# E constrói. O recado também é escondido na hora quando o modo acaba
+# (hud.esconder_aviso), senão ele fica 2s na tela dizendo o contrário.
+const RECADO_CONSTRUIR: String = "E constrói · Esc desiste"
+const INTERVALO_RECADO_CONSTRUIR: float = 1.8
+
 # --- FOME ---
 # Quanto da barra de fome o jogador perde por dia (em pontos).
 # 100 = a barra inteira em um dia, que foi o que você escolheu.
@@ -161,6 +169,10 @@ var fantasma: Node2D = null        # prévia semi-transparente da construção
 var largando: bool = false
 var tempo_do_recado_de_largar: float = 0.0  # ver _process
 
+# Mesmo par do largar, agora pro modo de construção (ver RECADO_CONSTRUIR):
+# é o tempo que falta pra repetir o "E constrói · Esc desiste" na tela.
+var tempo_do_recado_de_construcao: float = 0.0  # ver _process
+
 # --- Conversa com NPC ---
 var dialogo_ativo: bool = false   # trava: só uma conversa por vez
 var _frame_do_dialogo: int = -1   # ver _atualizar_dialogo (guarda o E do mesmo frame)
@@ -183,6 +195,15 @@ func _ready() -> void:
 		push_error("Main: não achei o Player no grupo 'jogador'!")
 
 	hud.construcao_solicitada.connect(_on_construcao_solicitada)
+
+	# O PREÇO de cada construção mora no RECEITAS (aqui), mas quem desenha é a
+	# HUD. A Main manda pra baixo (call down), uma vez por receita — assim o
+	# preço da tela e o do RECEITAS nunca ficam fora de sincronia: mudar o
+	# custo aqui já muda o número, os ícones e o tooltip lá.
+	# Roda no _ready da Main, ou seja DEPOIS do _ready da HUD (filho primeiro):
+	# quando a HUD recebe isto, os botões, os slots e o jogador já existem.
+	for tipo in RECEITAS:
+		hud.definir_custo_de_construcao(tipo, RECEITAS[tipo]["nome"], RECEITAS[tipo]["custo"])
 
 	# Dormir: o Player só AVISA que apertaram E na casa; quem executa é o Main,
 	# que é o dono do ciclo dia/noite (call down, signal up).
@@ -292,6 +313,14 @@ func _process(delta: float) -> void:
 			_confirmar_construcao()
 		elif Input.is_action_just_pressed("ui_cancel"):
 			_cancelar_construcao()
+		else:
+			# Mesmo esquema do modo largar logo abaixo: o aviso dourado some
+			# sozinho em 2s, mas o modo segue armado — então o recado se
+			# renova enquanto o fantasma estiver na mão do jogador.
+			tempo_do_recado_de_construcao -= delta
+			if tempo_do_recado_de_construcao <= 0.0:
+				tempo_do_recado_de_construcao = INTERVALO_RECADO_CONSTRUIR
+				hud.mostrar_aviso(RECADO_CONSTRUIR)
 
 	# --- Modo largar (Q): o Q arma; quem escolhe o item é o clique no slot ---
 	if Input.is_action_just_pressed("dropar") and _pode_usar_o_q():
@@ -440,6 +469,13 @@ func _on_construcao_solicitada(tipo: String) -> void:
 	construcao_ativa = tipo
 	jogador.modo_construcao = true  # impede que o E pegue item enquanto constrói
 
+	# Ensina o que fazer com a prévia que acabou de aparecer. Antes o jogador
+	# clicava e ficava com um quadrado translúcido na frente sem instrução
+	# nenhuma. Daqui pra frente o recado se renova sozinho (ver _process).
+	hud.mostrar_aviso(RECADO_CONSTRUIR)
+	tempo_do_recado_de_construcao = INTERVALO_RECADO_CONSTRUIR
+
+
 func _confirmar_construcao() -> void:
 	if fantasma == null:
 		return
@@ -457,15 +493,28 @@ func _confirmar_construcao() -> void:
 	fantasma = null
 	construcao_ativa = ""
 
+	# Fecha o recado do modo com um "pronto" — o aviso dourado é o MESMO
+	# label, então isto substitui o "E constrói" (que não vale mais) e
+	# confirma que a construção saiu.
+	hud.mostrar_aviso("Construção pronta: " + receita["nome"])
+
 	# Espera o próximo frame de física pra liberar o E, senão o MESMO toque
 	# que confirmou a construção também pegaria um item no mesmo frame
 	await get_tree().physics_frame
 	jogador.modo_construcao = false
 
+
 func _cancelar_construcao() -> void:
 	if fantasma:
 		fantasma.queue_free()
 		fantasma = null
+		# Esc: o modo acabou, então o "E constrói · Esc desiste" some NA HORA
+		# em vez de ficar 2s na tela dizendo pra apertar uma tecla que não
+		# faz mais nada. (Só quando havia fantasma: se ninguém estava
+		# construindo, este cancelar não pode apagar um aviso alheio, tipo o
+		# "Faltam materiais para Abrigo!" que o _on_construcao_solicitada
+		# mostra logo depois.)
+		hud.esconder_aviso()
 	construcao_ativa = ""
 	if jogador:
 		jogador.modo_construcao = false
