@@ -3,24 +3,17 @@ extends CanvasLayer
 # =====================================================================
 # HUD.gd — Godot 4.x
 #
-# ATENÇÃO: a causa dos seus erros de connect era a SINTAXE:
-#
-#   ERRADO (sintaxe de Godot 3):
-#       Status.vida_alterada.connect(self, "_on_Status_vida_alterada")
-#
-#   CERTO (sintaxe de Godot 4):
-#       Status.vida_alterada.connect(_on_Status_vida_alterada)
-#
-# No Godot 4, o connect() de um SINAL recebe SOMENTE um Callable.
-# Escrever apenas o nome do método (sem aspas e sem o self) já cria
-# um Callable apontando para este script.
+# Lembrete de sintaxe (Godot 4): para conectar um SINAL use só o
+# Callable, sem `self` e sem aspas:
+#     Status.vida_alterada.connect(_on_Status_vida_alterada)
 # =====================================================================
+
+# Sinal que o Main escuta para saber qual construção o jogador pediu
+# (regra do projeto: "call down, signal up" — o HUD só PEDE, o Main cria)
+signal construcao_solicitada(tipo: String)
 
 
 # --- BARRAS (cada frame do sprite = uma porcentagem) ------------------
-# Cada barra usa a animação que está definida NO PRÓPRIO NÓ dentro do
-# HUD.tscn (BarraFome -> "fome", BarraSanidade -> "sanidade", etc.),
-# por isso o código não precisa do nome da animação aqui.
 @onready var barra_vida: AnimatedSprite2D = $ContainerPrincipal/BarraVida
 @onready var barra_fome: AnimatedSprite2D = $ContainerPrincipal/BarraFome
 @onready var barra_sanidade: AnimatedSprite2D = $ContainerPrincipal/BarraSanidade
@@ -32,6 +25,15 @@ extends CanvasLayer
 @onready var slots_container: Node = $ContainerPrincipal/SlotsInventario
 var slots: Array[TextureRect] = []
 
+# --- BOTÕES DE CONSTRUÇÃO ---------------------------------------------
+@onready var btn_fogueira: Button = $ContainerPrincipal/BotoesConstrucao/BtnFogueira
+@onready var btn_cama: Button = $ContainerPrincipal/BotoesConstrucao/BtnCama
+@onready var btn_abrigo: Button = $ContainerPrincipal/BotoesConstrucao/BtnAbrigo
+
+# Ícones dos botões (placeholders — troque o caminho quando tiver a arte)
+const ICONE_FOGUEIRA := preload("res://assets/items/placeholder.png")
+const ICONE_ABRIGO := preload("res://assets/mapa/House_Yellow.png")
+
 # --- ÍCONES DOS ITENS -------------------------------------------------
 # W_Idle = tronco (madeira) | M_Idle = carne (comida) | placeholder = cinza
 var item_icons: Dictionary = {
@@ -39,6 +41,10 @@ var item_icons: Dictionary = {
 	"comida": preload("res://assets/items/M_Idle.png"),
 	"pedra": preload("res://assets/items/placeholder.png"),
 }
+
+# Aviso na tela (ex: "Faltam materiais!"), criado por código
+var label_aviso: Label
+var timer_aviso: Timer
 
 
 func _ready() -> void:
@@ -84,8 +90,6 @@ func _ready() -> void:
 
 	# -----------------------------------------------------------------
 	# 4) PINTAR O ESTADO ATUAL DAS BARRAS
-	#    (o Status só emite sinal quando o valor MUDA; sem este bloco
-	#    as barras ficariam no frame 0 até a primeira alteração)
 	# -----------------------------------------------------------------
 	_atualizar_barra_discreta(barra_vida, Status.vida, Status.vida_maximo)
 	_atualizar_barra_discreta(barra_fome, Status.fome, Status.fome_maximo)
@@ -95,6 +99,63 @@ func _ready() -> void:
 	# 5) CONTADOR DE DIAS COMEÇA NO "DIA 1"
 	# -----------------------------------------------------------------
 	atualizar_contador_dias(1)
+
+	# -----------------------------------------------------------------
+	# 6) BOTÕES DE CONSTRUÇÃO (só Fogueira e Abrigo são construíveis)
+	#    A cama NÃO entra no craft (decisão do time) — deixamos o nó
+	#    escondido; se quiser removê-lo de vez, apague no HUD.tscn.
+	# -----------------------------------------------------------------
+	btn_cama.visible = false
+
+	btn_fogueira.icon = ICONE_FOGUEIRA
+	btn_fogueira.expand_icon = true
+	btn_fogueira.tooltip_text = "Fogueira (2 madeira)"
+	btn_fogueira.pressed.connect(_on_btn_fogueira_pressed)
+
+	btn_abrigo.icon = ICONE_ABRIGO
+	btn_abrigo.expand_icon = true
+	btn_abrigo.tooltip_text = "Abrigo (2 madeira + 1 pedra)"
+	btn_abrigo.pressed.connect(_on_btn_abrigo_pressed)
+
+	_criar_aviso()
+
+
+# =====================================================================
+# BOTÕES DE CONSTRUÇÃO
+# =====================================================================
+func _on_btn_fogueira_pressed() -> void:
+	construcao_solicitada.emit("fogueira")
+
+func _on_btn_abrigo_pressed() -> void:
+	construcao_solicitada.emit("abrigo")
+
+
+# =====================================================================
+# AVISO NA TELA (criado por código pra não precisar editar o HUD.tscn)
+# =====================================================================
+func _criar_aviso() -> void:
+	label_aviso = Label.new()
+	label_aviso.visible = false
+	label_aviso.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label_aviso.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
+	label_aviso.add_theme_font_size_override("font_size", 30)
+	label_aviso.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	label_aviso.offset_top = 140.0
+	label_aviso.offset_bottom = 180.0
+	add_child(label_aviso)
+
+	timer_aviso = Timer.new()
+	timer_aviso.one_shot = true
+	timer_aviso.timeout.connect(_esconder_aviso)
+	add_child(timer_aviso)
+
+func mostrar_aviso(texto: String) -> void:
+	label_aviso.text = texto
+	label_aviso.visible = true
+	timer_aviso.start(2.0)
+
+func _esconder_aviso() -> void:
+	label_aviso.visible = false
 
 
 # =====================================================================
@@ -140,8 +201,7 @@ func atualizar_contador_dias(dia: int) -> void:
 		return
 
 	# frame 0 = "DIA 1" -> subtrai 1. Depois do DIA 10 o sprite fica
-	# travado no último frame (quando tiver mais arte, é só adicionar
-	# mais frames na animação "dias" do ui.tres).
+	# travado no último frame.
 	var indice: int = clampi(dia - 1, 0, frame_count - 1)
 
 	sprite_dias.stop()
@@ -157,7 +217,10 @@ func _on_Player_inventario_alterado(slot_index: int, item_name: String) -> void:
 		return
 
 	var slot: TextureRect = slots[slot_index]
-	if item_icons.has(item_name):
+	if item_name == "":
+		# Slot esvaziado (ex: item gasto numa construção)
+		slot.texture = null
+	elif item_icons.has(item_name):
 		slot.texture = item_icons[item_name]
 	else:
 		# Item sem ícone cadastrado -> cinza provisório

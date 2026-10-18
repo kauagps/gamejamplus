@@ -11,6 +11,9 @@ var ultima_direcao: Vector2 = Vector2.DOWN
 #inventario
 var inventario: Array[String] = ["", "", ""]
 
+# Enquanto true (modo de construção ativo no Main), o E não pega item
+var modo_construcao: bool = false
+
 @onready var area_interacao: Area2D = $AreaInteracao
 @onready var item_proximo: Item = null
 @onready var animacao: AnimatedSprite2D = $AnimatedSprite2D  # Referência ao nó de animação
@@ -38,7 +41,7 @@ func _physics_process(delta: float) -> void:
 		
 			_atualizar_animacao_parado()
 	
-	if Input.is_action_just_pressed("interagir") and item_proximo != null:
+	if Input.is_action_just_pressed("interagir") and item_proximo != null and not modo_construcao:
 		pegar_item(item_proximo)
 		
 
@@ -77,6 +80,7 @@ func _atualizar_animacao_parado() -> void:
 	# Garante que a animação parado toque
 	if not animacao.is_playing():
 		animacao.play()
+
 #item na area de interação do jogador
 func _on_area_interacao_area_entered(area: Area2D) -> void:
 	if area.is_in_group("item"):
@@ -105,7 +109,7 @@ func pegar_item(item: Item) -> void:
 			emit_signal("inventario_alterado", i, nome_item)  # ← ISSO AQUI
 			
 			return
-			
+
 func _on_Animacao_animation_finished() -> void:
 	# Só reagimos se a animação que acabou de terminar for a de coleta
 	if animacao.animation == "coletando item":
@@ -118,3 +122,41 @@ func _on_Animacao_animation_finished() -> void:
 			_atualizar_animacao(direcao)  # Volta à animação de movimento
 		else:
 			_atualizar_animacao_parado()  # Volta à animação parado
+
+
+# =====================================================================
+# INVENTÁRIO — usado pela construção (Main) para checar e gastar itens
+# =====================================================================
+# Diz se o jogador tem TODOS os itens da lista (contando itens repetidos).
+# Ex: tem_itens(["madeira", "madeira"]) só é true se houver 2 madeiras.
+func tem_itens(necessarios: Array) -> bool:
+	var usados: Array[bool] = []
+	usados.resize(inventario.size())
+
+	for item_necessario in necessarios:
+		var achou: bool = false
+		for i in inventario.size():
+			if not usados[i] and inventario[i] == item_necessario:
+				usados[i] = true
+				achou = true
+				break
+		if not achou:
+			return false
+	return true
+
+# Gasta os itens da lista (se tiver todos). Retorna false se faltar algo.
+func consumir_itens(necessarios: Array) -> bool:
+	if not tem_itens(necessarios):
+		return false
+
+	var usados: Array[bool] = []
+	usados.resize(inventario.size())
+
+	for item_necessario in necessarios:
+		for i in inventario.size():
+			if not usados[i] and inventario[i] == item_necessario:
+				usados[i] = true
+				inventario[i] = ""
+				emit_signal("inventario_alterado", i, "")  # HUD limpa o slot
+				break
+	return true

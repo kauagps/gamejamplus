@@ -1,10 +1,18 @@
-[gd_scene format=3 uid="uid://c53jblq8gyvdr"]
+[gd_scene load_steps=3 format=3 uid="uid://c53jblq8gyvdr"]
+
+[ext_resource type="Texture2D" uid="uid://bnhendva7rxrs" path="res://assets/mapa/House_Yellow.png" id="1_abrigo"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_44qij"]
+size = Vector2(116, 70)
 
-[node name="Abrigo" type="Node2D" unique_id=692953930]
+[node name="Abrigo" type="StaticBody2D" unique_id=692953930]
+collision_layer = 1
+collision_mask = 0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=786569000]
+position = Vector2(0, -35)
 shape = SubResource("RectangleShape2D_44qij")
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=1441789104]
+offset = Vector2(0, -96)
+texture = ExtResource("1_abrigo")

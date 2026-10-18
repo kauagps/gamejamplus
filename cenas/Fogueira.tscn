@@ -1,10 +1,19 @@
-[gd_scene format=3 uid="uid://ch458vaq1wk7h"]
+[gd_scene load_steps=3 format=3 uid="uid://ch458vaq1wk7h"]
+
+[ext_resource type="Texture2D" uid="uid://brij1heryx8ak" path="res://assets/items/placeholder.png" id="1_fogueira"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_44qij"]
+size = Vector2(40, 40)
 
-[node name="Fogueira" type="Node2D" unique_id=1953533222]
+[node name="Fogueira" type="StaticBody2D" unique_id=1953533222]
+collision_layer = 1
+collision_mask = 0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1668789319]
+position = Vector2(0, -20)
 shape = SubResource("RectangleShape2D_44qij")
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=1381938007]
+scale = Vector2(2, 2)
+offset = Vector2(0, -16)
+texture = ExtResource("1_fogueira")
