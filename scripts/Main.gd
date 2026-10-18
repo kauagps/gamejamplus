@@ -32,7 +32,7 @@ const RECEITAS: Dictionary = {
 }
 
 @onready var timer: Timer = $TimerDiaNoite
-@onready var modulacao: CanvasModulate = $LuzGlobal
+@onready var modulacao: LuzGlobal = $LuzGlobal
 @onready var hud: CanvasLayer = $HUD
 @onready var node_construcoes: Node2D = $Node  # nó com y_sort_enabled
 @onready var jogador: Node2D = get_tree().get_first_node_in_group("jogador")
@@ -71,6 +71,8 @@ func _ready() -> void:
 	)
 
 func _process(_delta: float) -> void:
+	atualizar_luz_do_dia()
+
 	# --- Modo de construção: a prévia (fantasma) segue o jogador ---
 	if fantasma != null:
 		# O fantasma fica sempre um pouco à frente do jogador
@@ -163,15 +165,32 @@ func _definir_colisao(no: Node, camada: int) -> void:
 			filho.collision_layer = camada
 
 # =====================================================================
+# LUZ DO DIA (amanhecer / anoitecer procedural)
+# =====================================================================
+func atualizar_luz_do_dia() -> void:
+	# Quanto já passou da FASE atual (dia ou noite), de 0.0 a 1.0.
+	# time_left conta pra trás, então o "andado" é wait_time - time_left.
+	var andado_da_fase: float = 0.0
+	if timer.wait_time > 0.0:
+		andado_da_fase = clampf((timer.wait_time - timer.time_left) / timer.wait_time, 0.0, 1.0)
+
+	# O ciclo inteiro (dia + noite) vale 1.0: o dia ocupa a 1ª metade
+	# (0.0 = amanhecer) e a noite a 2ª (0.5 = anoitecer).
+	var momento: float = andado_da_fase * 0.5
+	if e_noite:
+		momento += 0.5
+
+	modulacao.definir_momento_do_dia(momento)
+
+# =====================================================================
 # CICLO DIA / NOITE
 # =====================================================================
 func _alternar_dia_noite() -> void:
 	e_noite = not e_noite
 	
-	if e_noite:
-		modulacao.color = Color(0.2, 0.2, 0.4)
-	else:
-		modulacao.color = Color(1, 1, 1)
+	# (a cor do céu não é mais trocada na mão aqui: quem cuida dela é o
+	#  gradiente, em atualizar_luz_do_dia(), a cada frame)
+	if not e_noite:
 		# Amanheceu -> virou o dia: conta +1 e atualiza o contador do HUD
 		dia_atual += 1
 		hud.atualizar_contador_dias(dia_atual)
@@ -187,7 +206,6 @@ func dormir() -> void:
 	# Amanhece na hora. Como o timer é reiniciado, o próximo anoitecer
 	# só vem um "dia" (timeout) inteiro depois.
 	e_noite = false
-	modulacao.color = Color(1, 1, 1)
 	timer.stop()
 	timer.start()
 
