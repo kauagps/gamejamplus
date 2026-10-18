@@ -1,0 +1,15 @@
+[gd_resource type="AtlasTexture" load_steps=2 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/mapa/arbustocomfruta-Sheet.png" id="1_sheet"]
+
+; A FRUTINHA do inventário: recorte do quadro 1 da sheet.
+;
+; Por que não usar o quadro inteiro (64x64)? Porque nos 64x64 da sheet a
+; frutinha ocupa SÓ 5x6 pixels (medido: x 88..92, y 9..14). O slot do
+; inventário tem 64x64 na tela: com o quadro inteiro ela apareceria quase
+; invisível. Recortando um quadradinho em volta dela, o slot estica o
+; recorte e a frutinha aparece do tamanho dos outros ícones (o "zoom").
+; Este retângulo está centrado nela com ~5px de folga em cada lado.
+[resource]
+atlas = ExtResource("1_sheet")
+region = Rect2(84, 4, 12, 15)

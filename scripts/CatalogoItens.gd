@@ -35,6 +35,16 @@ const ITENS: Dictionary = {
 		"sprite": preload("res://assets/items/pedra.png"),
 		"icone": preload("res://assets/items/pedra.png"),
 	},
+	# Fruta: no chão ela NÃO é uma frutinha solta, e sim um ARBUSTO com
+	# frutinhas (a mesma arte que se vê no mapa). Quem cuida da coleta é o
+	# scripts/Arbustro.gd, que no fim troca a arte pelo arbusto comum.
+	"fruta": {
+		"sprite": preload("res://assets/mapa/arbustocomfruta.tres"),
+		"icone": preload("res://assets/items/frutinha.tres"),
+		# Frutinha é lanche, não é o prato principal: recupera 1/5 do que a
+		# carne recupera. Se quiser outro valor, é só mexer neste número.
+		"efeitos": { "fome": 20.0 },
+	},
 }
 
 # Todos os nomes cadastrados (útil pra debug/validação)

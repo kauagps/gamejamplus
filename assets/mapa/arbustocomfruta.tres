@@ -1,0 +1,9 @@
+[gd_resource type="AtlasTexture" load_steps=2 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/mapa/arbustocomfruta-Sheet.png" id="1_sheet"]
+
+; Quadro 0 da sheet = o arbusto CHEIO de frutinhas (64x64).
+; É a arte que fica no chão, coletável.
+[resource]
+atlas = ExtResource("1_sheet")
+region = Rect2(0, 0, 64, 64)

@@ -4,7 +4,7 @@ extends Area2D
 
 # O dropdown vem da lista do @export_enum (evita erro de digitação,
 # já que toda a lógica compara itens por NOME)
-@export_enum("madeira", "comida", "pedra") var nome_do_item: String = "madeira"
+@export_enum("madeira", "comida", "pedra", "fruta") var nome_do_item: String = "madeira"
 
 @onready var sprite: Sprite2D = $Sprite2D
 

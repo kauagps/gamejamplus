@@ -22,6 +22,7 @@
 [ext_resource type="SpriteFrames" path="res://assets/Player/crianca.tres" id="16_crianca"]
 [ext_resource type="SpriteFrames" path="res://assets/Player/rosa.tres" id="17_rosa"]
 [ext_resource type="PackedScene" path="res://cenas/CartaoHistoria.tscn" id="18_cartao"]
+[ext_resource type="PackedScene" path="res://cenas/Arbustro.tscn" id="19_arbusto"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_o8b3u"]
 texture = ExtResource("2_adoo1")
@@ -299,6 +300,15 @@ nome_do_item = "pedra"
 position = Vector2(-790, 63)
 scale = Vector2(0.27379483, 0.3274088)
 nome_do_item = "comida"
+
+[node name="Arbusto" parent="Node" instance=ExtResource("19_arbusto")]
+position = Vector2(96, 96)
+
+[node name="Arbusto2" parent="Node" instance=ExtResource("19_arbusto")]
+position = Vector2(416, 96)
+
+[node name="Arbusto3" parent="Node" instance=ExtResource("19_arbusto")]
+position = Vector2(416, 224)
 
 [node name="Ovelha" parent="Node" instance=ExtResource("11_ovelha")]
 position = Vector2(154, 190)
