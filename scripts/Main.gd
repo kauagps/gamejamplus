@@ -3,6 +3,21 @@ extends Node2D
 # Distância (em pixels) que a prévia fica à frente do jogador
 const DISTANCIA_CONSTRUCAO: float = 32.0
 
+# --- LARGAR ITEM (Q) ---
+# A que distância (em pixels) o item largado cai à frente do John
+const DISTANCIA_LARGAMENTO: float = 32.0
+
+# O item largado é o MESMO Item.tscn dos itens do mapa: ele já nasce no grupo
+# "item" (o E pega de volta), na camada de física certa e com a colisão
+# calibrada. Não existe "item largado" como coisa nova.
+const CENA_ITEM_NO_CHAO: PackedScene = preload("res://cenas/Item.tscn")
+
+# O recado do modo largar fica numa constante porque o Main REPETE a mesma
+# frase de tempo em tempo: o aviso dourado some sozinho em 2s, mas o modo
+# continua armado (e um clique no slot largaria o item em vez de comer).
+const RECADO_LARGAR: String = "Clique no item que quer largar (Esc desiste)"
+const INTERVALO_RECADO_LARGAR: float = 1.8
+
 # --- FOME ---
 # Quanto da barra de fome o jogador perde por dia (em pontos).
 # 100 = a barra inteira em um dia, que foi o que você escolheu.
@@ -111,6 +126,14 @@ var dormindo: bool = false  # trava: 2 toques no E não podem dormir 2 vezes
 var construcao_ativa: String = ""  # "" = nenhum modo ativo
 var fantasma: Node2D = null        # prévia semi-transparente da construção
 
+# --- Modo largar (Q) ---
+# O Q não adivinha qual item sai da mochila: ele ARMA um modo, e o jogador
+# aponta o slot com o MESMO clique que já existia (o do "comer"). Assim não
+# nasce um segundo jeito de mexer no inventário, e não tem como largar o item
+# errado por acidente. Esc desiste.
+var largando: bool = false
+var tempo_do_recado_de_largar: float = 0.0  # ver _process
+
 # --- Conversa com NPC ---
 var dialogo_ativo: bool = false   # trava: só uma conversa por vez
 var _frame_do_dialogo: int = -1   # ver _atualizar_dialogo (guarda o E do mesmo frame)
@@ -215,11 +238,31 @@ func _process(delta: float) -> void:
 		elif Input.is_action_just_pressed("ui_cancel"):
 			_cancelar_construcao()
 
+	# --- Modo largar (Q): o Q arma; quem escolhe o item é o clique no slot ---
+	if Input.is_action_just_pressed("dropar") and _pode_usar_o_q():
+		_alternar_modo_largar()
+	elif largando:
+		if Input.is_action_just_pressed("ui_cancel"):
+			_sair_do_modo_largar()
+		else:
+			# O aviso dourado some sozinho em 2s, mas o modo segue armado —
+			# e aí o clique no slot largaria em vez de comer SEM o jogador
+			# saber. Por isso o recado se renova enquanto o modo durar.
+			tempo_do_recado_de_largar -= delta
+			if tempo_do_recado_de_largar <= 0.0:
+				tempo_do_recado_de_largar = INTERVALO_RECADO_LARGAR
+				hud.mostrar_aviso(RECADO_LARGAR)
+
 # =====================================================================
 # USO DE ITENS (clique no slot do inventário)
 # =====================================================================
 func _on_slot_usado(slot_index: int) -> void:
 	if jogador == null:
+		return
+
+	# Modo largar armado: este clique não come, ele joga fora
+	if largando:
+		_largar_item_do_slot(slot_index)
 		return
 
 	var nome: String = jogador.inventario[slot_index]
@@ -232,6 +275,85 @@ func _on_slot_usado(slot_index: int) -> void:
 	hud.mostrar_aviso("Não dá pra usar " + nome + " ainda")
 
 # =====================================================================
+# LARGAR ITEM NO CHÃO (Q → clique no slot)
+# =====================================================================
+# Q só vale com o mundo "solto": nada de largar item conversando, dormindo,
+# dentro da abertura (em_cena) ou no meio de uma construção.
+func _pode_usar_o_q() -> bool:
+	if jogador == null or dormindo or dialogo_ativo or fantasma != null:
+		return false
+	return not jogador.em_cena
+
+func _alternar_modo_largar() -> void:
+	largando = not largando
+	hud.destacar_slots_para_largar(largando)
+
+	if largando:
+		tempo_do_recado_de_largar = INTERVALO_RECADO_LARGAR
+		hud.mostrar_aviso(RECADO_LARGAR)
+	else:
+		hud.mostrar_aviso("Deixa quieto então")
+
+# "avisar" existe pro caso de outro modo (a construção) desarmar o largar:
+# aí o jogador não pediu pra desistir, então não precisa de recado.
+func _sair_do_modo_largar(avisar: bool = true) -> void:
+	if not largando:
+		return
+
+	largando = false
+	hud.destacar_slots_para_largar(false)
+	if avisar:
+		hud.mostrar_aviso("Nada foi largado")
+
+func _largar_item_do_slot(slot_index: int) -> void:
+	# Largou: o modo cumpriu o papel dele (e a HUD volta ao normal)
+	largando = false
+	hud.destacar_slots_para_largar(false)
+
+	# Quem manda no inventário é o Player: aqui só PEDIMOS o item de volta
+	var nome: String = jogador.tirar_item(slot_index)
+	if nome == "":
+		hud.mostrar_aviso("Esse slot está vazio")
+		return
+
+	_soltar_item_no_chao(nome, _lugar_do_largamento())
+	hud.mostrar_aviso("Largou " + nome)
+
+# Cria o item no mundo, no nó com y_sort das construções — assim ele acerta
+# a profundidade sozinho (atrás da árvore, na frente da grama...).
+func _soltar_item_no_chao(nome: String, posicao: Vector2) -> void:
+	var item: Item = CENA_ITEM_NO_CHAO.instantiate()
+	item.nome_do_item = nome  # antes do add_child: o _ready lê daqui
+	node_construcoes.add_child(item)
+	item.global_position = posicao
+
+	# Exceção da fruta: no chão ela é um arbusto, mas largada é uma frutinha
+	# (quem diz isso é o "solto" do catálogo; item sem "solto" não entra aqui).
+	var solto: Dictionary = CatalogoItens.solto(nome)
+	if solto.has("sprite"):
+		item.sprite.texture = solto["sprite"]
+		item.sprite.scale = Vector2.ONE * float(solto.get("zoom_sprite", 1.0))
+
+# Onde o item cai: um passo à frente do John. Se ali tiver parede/árvore, ele
+# cai nos pés — melhor um item no pé do que um item preso dentro de um sólido,
+# onde o jogador nunca conseguiria alcançar de novo.
+func _lugar_do_largamento() -> Vector2:
+	var na_frente: Vector2 = jogador.global_position + jogador.ultima_direcao * DISTANCIA_LARGAMENTO
+	if _espaco_livre(na_frente):
+		return na_frente
+	return jogador.global_position
+
+# Tem algo SÓLIDO (camada 1: árvore, parede, construção) encostando aqui?
+func _espaco_livre(posicao: Vector2) -> bool:
+	var consulta := PhysicsShapeQueryParameters2D.new()
+	var forma := CircleShape2D.new()
+	forma.radius = 8.0
+	consulta.shape = forma
+	consulta.transform = Transform2D(0.0, posicao)
+	consulta.collision_mask = 1
+	return get_world_2d().direct_space_state.intersect_shape(consulta, 1).is_empty()
+
+# =====================================================================
 # CONSTRUÇÃO
 # =====================================================================
 func _on_construcao_solicitada(tipo: String) -> void:
@@ -242,6 +364,9 @@ func _on_construcao_solicitada(tipo: String) -> void:
 	# Conversando não se constrói: o E está ocupado com a fala
 	if dialogo_ativo:
 		return
+
+	# Construção e largar disputam o clique do mouse: entrar num desarma o outro
+	_sair_do_modo_largar(false)
 
 	_cancelar_construcao()  # se já havia um fantasma, descarta ele
 

@@ -17,6 +17,10 @@ extends RefCounted
 # "efeitos" (opcional) = o que acontece ao USAR o item no inventário
 # (ex: { "fome": 50.0 } = comer e recuperar 50 de fome). Item sem
 # "efeitos" é só material de construção — não dá pra usar.
+#
+# "solto" (opcional) = como o item fica quando é LARGADO no chão (tecla Q).
+# Só é preciso quando a arte do chão não serve pra item largado — que é o
+# caso da fruta (no chão ela é um arbusto de 64px; largada, uma frutinha).
 # =====================================================================
 const ITENS: Dictionary = {
 	"madeira": {
@@ -41,6 +45,15 @@ const ITENS: Dictionary = {
 	"fruta": {
 		"sprite": preload("res://assets/mapa/arbustocomfruta.tres"),
 		"icone": preload("res://assets/items/frutinha.tres"),
+		# Largada no chão (Q) ela não pode virar um arbusto de 64px do nada:
+		# cai a frutinha mesmo. O "zoom_sprite" existe porque o Item.tscn já
+		# nasce escalado pras sheets de 128px — sem ele, os 12px da frutinha
+		# viram 4 pixels na tela. Com 5x ela fica do tamanho dos outros itens
+		# largados (madeira, pedra, carne).
+		"solto": {
+			"sprite": preload("res://assets/items/frutinha.tres"),
+			"zoom_sprite": 5.0,
+		},
 		# Frutinha é lanche, não é o prato principal: recupera 1/5 do que a
 		# carne recupera. Se quiser outro valor, é só mexer neste número.
 		"efeitos": { "fome": 20.0 },
@@ -72,3 +85,12 @@ static func efeitos(nome: String) -> Dictionary:
 # O item tem alguma utilidade dentro do inventário? (comer, curar...)
 static func pode_usar(nome: String) -> bool:
 	return not efeitos(nome).is_empty()
+
+# Como o item fica LARGADO no chão (ver o comentário do topo).
+# Dicionário vazio = "larga como o sprite do chão mesmo", que é o caso normal.
+#   "sprite"      = textura do item largado (opcional)
+#   "zoom_sprite" = multiplicador do sprite (opcional, padrão 1.0)
+static func solto(nome: String) -> Dictionary:
+	if ITENS.has(nome) and ITENS[nome].has("solto"):
+		return ITENS[nome]["solto"]
+	return {}

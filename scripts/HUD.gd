@@ -25,7 +25,9 @@ signal slot_usado(slot_index: int)
 @onready var sprite_dias: AnimatedSprite2D = $ContainerPrincipal/Dias
 
 # --- SLOTS DE INVENTÁRIO ----------------------------------------------
-@onready var slots_container: Node = $ContainerPrincipal/SlotsInventario
+# É um GridContainer: tingir ELE pinta o conjunto (fundo + ícones), que é o
+# que o modo largar precisa (tingir só o ícone quase não aparecia).
+@onready var slots_container: GridContainer = $ContainerPrincipal/SlotsInventario
 var slots: Array[TextureRect] = []
 
 # --- BOTÕES DE CONSTRUÇÃO ---------------------------------------------
@@ -528,6 +530,15 @@ func _on_Player_inventario_alterado(slot_index: int, item_name: String) -> void:
 
 # Clique com o botão esquerdo num slot = "usar este item".
 # A HUD não decide nada: ela só avisa o Main (regra call down, signal up).
+# O Main também usa este mesmo clique pro modo largar (Q).
 func _on_slot_gui_input(evento: InputEvent, indice: int) -> void:
 	if evento is InputEventMouseButton and evento.pressed and evento.button_index == MOUSE_BUTTON_LEFT:
 		slot_usado.emit(indice)
+
+
+# Modo largar (Q): o Main liga isto enquanto o jogador escolhe qual item
+# jogar fora. O conjunto dos slots fica avermelhado pra ficar óbvio que o
+# clique agora LARGA em vez de comer. A HUD não conhece a regra: só obedece.
+func destacar_slots_para_largar(ativo: bool) -> void:
+	slots_container.modulate = Color(1.0, 0.5, 0.5) if ativo else Color.WHITE
+

@@ -266,3 +266,19 @@ func usar_item(slot_index: int) -> bool:
 	inventario[slot_index] = ""
 	inventario_alterado.emit(slot_index, "")
 	return true
+
+# Tira o item de um slot SEM usar ele — é o "largar no chão" (Q).
+# O Player só devolve o NOME: quem cria o item no mundo é a Main, que é a
+# dona do mapa (mesma regra do dormir e da conversa: signal up).
+# Devolve "" se o slot estava vazio (aí nada acontece).
+func tirar_item(slot_index: int) -> String:
+	if slot_index < 0 or slot_index >= inventario.size():
+		return ""
+
+	var nome: String = inventario[slot_index]
+	if nome == "":
+		return ""
+
+	inventario[slot_index] = ""
+	inventario_alterado.emit(slot_index, "")
+	return nome
