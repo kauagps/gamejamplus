@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dbkvo4q2maljb"
-path="res://.godot/imported/pedra pequena.png-46d85f035bb9293fe6eba799d9ace5b0.ctex"
+path="res://.godot/imported/pedra.png-593802060bafac662e5544eb32087705.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/mapa/pedra pequena.png"
-dest_files=["res://.godot/imported/pedra pequena.png-46d85f035bb9293fe6eba799d9ace5b0.ctex"]
+source_file="res://assets/items/pedra.png"
+dest_files=["res://.godot/imported/pedra.png-593802060bafac662e5544eb32087705.ctex"]
 
 [params]
 

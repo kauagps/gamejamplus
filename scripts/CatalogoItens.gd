@@ -24,8 +24,8 @@ const ITENS: Dictionary = {
 		"icone": preload("res://assets/items/M_Idle.png"),
 	},
 	"pedra": {
-		"sprite": preload("res://assets/items/placeholder.png"),
-		"icone": preload("res://assets/items/placeholder.png"),
+		"sprite": preload("res://assets/items/pedra.png"),
+		"icone": preload("res://assets/items/pedra.png"),
 	},
 }
 

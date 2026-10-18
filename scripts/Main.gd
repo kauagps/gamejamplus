@@ -51,13 +51,6 @@ func _process(_delta: float) -> void:
 			_confirmar_construcao()
 		elif Input.is_action_just_pressed("ui_cancel"):
 			_cancelar_construcao()
-		return
-
-	# --- TEMPORÁRIO: tecla de debug pra testar o dormir ---
-	# Quando o objeto real existir (cama/fogueira), esta chamada sai daqui:
-	# quem vai chamar dormir() é a interação com ele.
-	if Input.is_action_just_pressed("dormir"):
-		dormir()
 
 # =====================================================================
 # CONSTRUÇÃO

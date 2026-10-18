@@ -57,6 +57,7 @@ func _ready() -> void:
 	var jogador: Node2D = get_tree().get_first_node_in_group("jogador")
 	if jogador:
 		jogador.inventario_alterado.connect(_on_Player_inventario_alterado)
+		jogador.dica_interacao.connect(_on_Player_dica_interacao)
 	else:
 		push_error("HUD: Jogador não encontrado no grupo 'jogador'!")
 

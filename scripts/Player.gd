@@ -5,6 +5,13 @@ extends CharacterBody2D
 
 signal inventario_alterado(slot_index: int, item_name: String)
 
+# O Player só PEDE pra dormir; quem executa é a Main (dona do ciclo dia/noite).
+# "call down, signal up": o Player nunca chama a Main diretamente.
+signal dormir_solicitado
+
+# Dica rápida pro HUD ("Aperte E para...") quando algo entra no alcance
+signal dica_interacao(texto: String)
+
 #direcao
 var ultima_direcao: Vector2 = Vector2.DOWN
 
