@@ -16,6 +16,31 @@ const SANIDADE_POR_DIA_SEM_COMIDA: float = 50.0
 # Quanto de fome dormir custa (1/4 do consumo de um dia inteiro)
 const FOME_PERDIDA_AO_DORMIR: float = FOME_POR_DIA * 0.25
 
+# --- NOITE (um PRAZO, não mais um relógio) ---
+# A noite não passa sozinha: ela só termina quando o jogador dorme.
+# Enquanto isso a sanidade escorre, e é isso que empurra ele pra cama.
+# 100 = a barra inteira se esvazia em um dia de noite (escolha do time).
+const SANIDADE_POR_DIA_NA_NOITE: float = 100.0
+
+# --- LUZ DO DIA ---
+# Onde o "momento do dia" (0.0 a 1.0 do gradiente) para em cada marco.
+const PONTO_ANOITECER: float = 0.5        # fim do dia: o céu começa a fechar
+const PONTO_NOITE: float = 0.85           # a cor plana da noite no gradiente
+const DURACAO_DO_ANOITECER: float = 4.0   # segundos até o céu fechar de vez
+
+# --- PENSAMENTOS DO PERSONAGEM ---
+# "momento" = fração do DIA (0.5 = metade do dia, 0.9 = faltando 10%).
+# São os avisos de que a noite vem vindo. Como são PORCENTAGEM, mudar a
+# duração do dia no Inspector não desalinha eles.
+const PENSAMENTOS_DO_DIA: Array = [
+	{ "momento": 0.50, "texto": "O sol está baixando..." },
+	{ "momento": 0.75, "texto": "Tá escurecendo, melhor eu achar a casa." },
+	{ "momento": 0.90, "texto": "Está anoitecendo, preciso dormir." },
+]
+
+# De quanto em quanto tempo ele repete que precisa dormir, de noite
+const INTERVALO_PENSAMENTO_NOITE: float = 8.0
+
 # Receitas: o que cada construção custa.
 # "custo" usa os MESMOS nomes que os itens do inventário.
 const RECEITAS: Dictionary = {
@@ -34,18 +59,32 @@ const RECEITAS: Dictionary = {
 @onready var timer: Timer = $TimerDiaNoite
 @onready var modulacao: LuzGlobal = $LuzGlobal
 @onready var hud: CanvasLayer = $HUD
+@onready var vinheta: Vinheta = $Vinheta
 @onready var node_construcoes: Node2D = $Node  # nó com y_sort_enabled
 @onready var jogador: Node2D = get_tree().get_first_node_in_group("jogador")
 
 var e_noite: bool = false
 var dia_atual: int = 1  # o dia atual do jogo (começa no DIA 1)
 
+# --- Luz (ver atualizar_luz_do_dia) ---
+var momento_da_luz: float = 0.0          # 0.0 a 1.0, o que o gradiente entende
+var transicao_do_anoitecer: float = 0.0  # 0 = ainda claro, 1 = noite fechada
+
+# --- Pensamentos do personagem (ver atualizar_pensamentos) ---
+var pensamentos_ja_ditos: Array[int] = []  # índices já mostrados neste dia
+var tempo_do_proximo_pensamento: float = 0.0  # contagem da insistência noturna
+
+# --- Dormir ---
+var dormindo: bool = false  # trava: 2 toques no E não podem dormir 2 vezes
+
 # --- Modo de construção ---
 var construcao_ativa: String = ""  # "" = nenhum modo ativo
 var fantasma: Node2D = null        # prévia semi-transparente da construção
 
 func _ready() -> void:
-	timer.timeout.connect(_alternar_dia_noite)
+	# O timer conta SÓ o dia. A noite não tem relógio: ela acaba quando o
+	# jogador dorme (ver _comecar_a_noite).
+	timer.timeout.connect(_comecar_a_noite)
 	timer.start()
 
 	if jogador == null:
@@ -62,16 +101,17 @@ func _ready() -> void:
 	hud.slot_usado.connect(_on_slot_usado)
 
 	# --- Taxas de desgaste ---
-	# Um "dia" do jogo = dia + noite, ou seja, 2x o wait_time do TimerDiaNoite.
-	# Daí saem as taxas POR SEGUNDO que o Status aplica a cada frame.
-	var duracao_do_dia: float = timer.wait_time * 2.0
+	# Um "dia" do jogo agora é SÓ a fase clara (o wait_time do timer): a
+	# noite não tem duração, ela acaba quando o jogador dorme. Daí saem as
+	# taxas POR SEGUNDO que o Status aplica a cada frame.
 	Status.definir_taxas_de_desgaste(
-		FOME_POR_DIA / duracao_do_dia,
-		SANIDADE_POR_DIA_SEM_COMIDA / duracao_do_dia
+		_por_segundo(FOME_POR_DIA),
+		_por_segundo(SANIDADE_POR_DIA_SEM_COMIDA)
 	)
 
-func _process(_delta: float) -> void:
-	atualizar_luz_do_dia()
+func _process(delta: float) -> void:
+	atualizar_luz_do_dia(delta)
+	atualizar_pensamentos(delta)
 
 	# --- Modo de construção: a prévia (fantasma) segue o jogador ---
 	if fantasma != null:
@@ -167,51 +207,108 @@ func _definir_colisao(no: Node, camada: int) -> void:
 # =====================================================================
 # LUZ DO DIA (amanhecer / anoitecer procedural)
 # =====================================================================
-func atualizar_luz_do_dia() -> void:
-	# Quanto já passou da FASE atual (dia ou noite), de 0.0 a 1.0.
-	# time_left conta pra trás, então o "andado" é wait_time - time_left.
-	var andado_da_fase: float = 0.0
-	if timer.wait_time > 0.0:
-		andado_da_fase = clampf((timer.wait_time - timer.time_left) / timer.wait_time, 0.0, 1.0)
-
-	# O ciclo inteiro (dia + noite) vale 1.0: o dia ocupa a 1ª metade
-	# (0.0 = amanhecer) e a noite a 2ª (0.5 = anoitecer).
-	var momento: float = andado_da_fase * 0.5
+func atualizar_luz_do_dia(delta: float) -> void:
 	if e_noite:
-		momento += 0.5
+		# A noite NÃO anda sozinha: o céu só termina de escurecer e fica
+		# ali, parado, esperando o jogador dormir. A rampa de 4s existe pra
+		# entrada da noite não ser um piscar de olhos.
+		transicao_do_anoitecer = minf(transicao_do_anoitecer + delta / DURACAO_DO_ANOITECER, 1.0)
+		momento_da_luz = lerpf(PONTO_ANOITECER, PONTO_NOITE, transicao_do_anoitecer)
+	else:
+		# De dia a luz caminha sozinha: 0.0 (amanhecer) até 0.5 (anoitecer)
+		momento_da_luz = _andado_do_dia() * PONTO_ANOITECER
 
-	modulacao.definir_momento_do_dia(momento)
+	modulacao.definir_momento_do_dia(momento_da_luz)
 
 # =====================================================================
-# CICLO DIA / NOITE
+# TEMPO
 # =====================================================================
-func _alternar_dia_noite() -> void:
-	e_noite = not e_noite
-	
-	# (a cor do céu não é mais trocada na mão aqui: quem cuida dela é o
-	#  gradiente, em atualizar_luz_do_dia(), a cada frame)
-	if not e_noite:
-		# Amanheceu -> virou o dia: conta +1 e atualiza o contador do HUD
-		dia_atual += 1
-		hud.atualizar_contador_dias(dia_atual)
-		
-	timer.start()
-	
+# Quanto do DIA já passou, de 0.0 a 1.0 (time_left conta pra trás).
+func _andado_do_dia() -> float:
+	if timer.wait_time <= 0.0:
+		return 0.0
+	return clampf((timer.wait_time - timer.time_left) / timer.wait_time, 0.0, 1.0)
+
+# Transforma "X por dia" em "X por segundo" (um dia = a fase clara do timer).
+# É daqui que saem as taxas que o Status aplica frame a frame.
+func _por_segundo(valor_por_dia: float) -> float:
+	if timer.wait_time <= 0.0:
+		return 0.0
+	return valor_por_dia / timer.wait_time
+
+# =====================================================================
+# CICLO DIA / NOITE (a noite é um PRAZO: ela não passa sozinha)
+# =====================================================================
+func _comecar_a_noite() -> void:
+	e_noite = true
+
+	# O timer PARA aqui. Não existe "depois da noite": quem traz o dia
+	# seguinte é o dormir(). É isso que transforma a noite num prazo.
+	timer.stop()
+
+	# O céu escurece devagar (quem faz a rampa é o atualizar_luz_do_dia)
+	transicao_do_anoitecer = 0.0
+
+	# E a sanidade começa a escorrer: é o relógio da noite agora
+	Status.definir_taxa_sanidade_noturna(_por_segundo(SANIDADE_POR_DIA_NA_NOITE))
+
+	# O personagem avisa, e vai repetir a cada INTERVALO_PENSAMENTO_NOITE
+	tempo_do_proximo_pensamento = INTERVALO_PENSAMENTO_NOITE
+	hud.mostrar_pensamento("Está anoitecendo, preciso dormir.")
+
+# =====================================================================
+# PENSAMENTOS DO PERSONAGEM
+# =====================================================================
+func atualizar_pensamentos(delta: float) -> void:
+	if e_noite:
+		# De noite ele insiste, até o jogador dormir
+		tempo_do_proximo_pensamento -= delta
+		if tempo_do_proximo_pensamento <= 0.0:
+			tempo_do_proximo_pensamento = INTERVALO_PENSAMENTO_NOITE
+			hud.mostrar_pensamento("Está escuro... eu preciso dormir.")
+		return
+
+	# De dia cada pensamento sai quando o dia chega na porcentagem dele.
+	# Se dois vencerem no mesmo frame, o último é o que fica na tela — mas
+	# todos são marcados como ditos, então nenhum deles se repete.
+	var andado_do_dia: float = _andado_do_dia()
+	for i in PENSAMENTOS_DO_DIA.size():
+		if i in pensamentos_ja_ditos:
+			continue
+		var momento_do_pensamento: float = PENSAMENTOS_DO_DIA[i]["momento"]
+		if andado_do_dia >= momento_do_pensamento:
+			pensamentos_ja_ditos.append(i)
+			hud.mostrar_pensamento(PENSAMENTOS_DO_DIA[i]["texto"])
+
+# =====================================================================
+# DORMIR (a vinheta + o sono)
+# =====================================================================
 func dormir() -> void:
+	# Dois toques no E durante a vinheta não podem dormir duas vezes
+	if dormindo:
+		return
+
 	# Só dá pra dormir de noite
 	if not e_noite:
 		hud.mostrar_aviso("Você só pode dormir à noite!")
 		return
 
-	# Amanhece na hora. Como o timer é reiniciado, o próximo anoitecer
-	# só vem um "dia" (timeout) inteiro depois.
-	e_noite = false
-	timer.stop()
-	timer.start()
+	dormindo = true
 
-	# Dormir avança para o dia seguinte
+	# 1) A pálpebra fecha: a tela escurece por uma vinheta
+	await vinheta.fechar()
+
+	# 2) O sono acontece no escuro: o jogador não vê o corte do amanhecer
+	e_noite = false
+	transicao_do_anoitecer = 0.0   # momento_da_luz = 0.0 = amanhecer
+	timer.stop()
+	timer.start()                  # começa um dia novo
+
 	dia_atual += 1
 	hud.atualizar_contador_dias(dia_atual)
+
+	# A noite acabou: a sanidade para de escorrer
+	Status.definir_taxa_sanidade_noturna(0.0)
 
 	# Acorda descansado: sanidade cheia
 	# (mudar_sanidade SOMA e faz clamp, então passar o máximo devolve tudo)
@@ -219,3 +316,12 @@ func dormir() -> void:
 
 	# ...mas dormir também gasta energia: custa um pedaço da fome
 	Status.mudar_fome(-FOME_PERDIDA_AO_DORMIR)
+
+	# Os pensamentos do dia podem voltar a acontecer amanhã
+	pensamentos_ja_ditos.clear()
+	tempo_do_proximo_pensamento = 0.0
+
+	# 3) E a pálpebra abre (a vinheta inversa, do centro pra fora)
+	await vinheta.abrir()
+	dormindo = false
+	hud.mostrar_pensamento("Bom dia... o que será que me espera hoje?")

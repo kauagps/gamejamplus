@@ -45,6 +45,13 @@ const ICONE_ABRIGO := preload("res://assets/mapa/House_Yellow.png")
 var label_aviso: Label
 var timer_aviso: Timer
 
+# Pensamento do personagem (ex: "Está anoitecendo, preciso dormir.").
+# É um texto SEPARADO do aviso, com outro estilo e em outro lugar da tela:
+# o jogador aprende que dourado no topo = aviso do sistema, azulado no
+# rodapé = o personagem pensando.
+var label_pensamento: Label
+var timer_pensamento: Timer
+
 
 func _ready() -> void:
 	# -----------------------------------------------------------------
@@ -125,6 +132,7 @@ func _ready() -> void:
 	btn_abrigo.pressed.connect(_on_btn_abrigo_pressed)
 
 	_criar_aviso()
+	_criar_pensamento()
 
 
 # =====================================================================
@@ -142,6 +150,7 @@ func _on_btn_abrigo_pressed() -> void:
 # =====================================================================
 func _criar_aviso() -> void:
 	label_aviso = Label.new()
+	label_aviso.name = "Aviso"  # nome só pra ficar achável no Remote inspector
 	label_aviso.visible = false
 	label_aviso.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label_aviso.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
@@ -163,6 +172,43 @@ func mostrar_aviso(texto: String) -> void:
 
 func _esconder_aviso() -> void:
 	label_aviso.visible = false
+
+
+# =====================================================================
+# PENSAMENTO DO PERSONAGEM (rodapé, criado por código igual ao aviso)
+# =====================================================================
+func _criar_pensamento() -> void:
+	label_pensamento = Label.new()
+	label_pensamento.name = "Pensamento"  # nome só pra achar no Remote inspector
+	label_pensamento.visible = false
+	label_pensamento.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# Azul-claro com CONTORNO escuro: assim o texto fica legível em cima do
+	# mapa (grama, água, árvore) sem precisar de painel/fundo atrás.
+	label_pensamento.add_theme_color_override("font_color", Color(0.86, 0.92, 1.0))
+	label_pensamento.add_theme_color_override("font_outline_color", Color(0.06, 0.07, 0.14, 0.9))
+	label_pensamento.add_theme_constant_override("outline_size", 8)
+	label_pensamento.add_theme_font_size_override("font_size", 26)
+	# Fica no rodapé (o aviso do sistema fica no topo): é o que separa
+	# visualmente "o personagem pensando" de "o jogo te avisando".
+	label_pensamento.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	label_pensamento.offset_top = -140.0
+	label_pensamento.offset_bottom = -100.0
+	add_child(label_pensamento)
+
+	timer_pensamento = Timer.new()
+	timer_pensamento.one_shot = true
+	timer_pensamento.timeout.connect(_esconder_pensamento)
+	add_child(timer_pensamento)
+
+# O Main chama isso quando o personagem "pensa" algo (o aviso de que a noite
+# está chegando). Fica na tela por alguns segundos e some sozinho.
+func mostrar_pensamento(texto: String, duracao: float = 4.0) -> void:
+	label_pensamento.text = texto
+	label_pensamento.visible = true
+	timer_pensamento.start(duracao)
+
+func _esconder_pensamento() -> void:
+	label_pensamento.visible = false
 
 # Dica que o Player manda quando ele chega perto de um item ou da casa
 func _on_Player_dica_interacao(texto: String) -> void:

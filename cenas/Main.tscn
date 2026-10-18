@@ -16,6 +16,7 @@
 [ext_resource type="Texture2D" uid="uid://d3si18j33lx8v" path="res://assets/mapa/arbustro.png" id="10_s3787"]
 [ext_resource type="PackedScene" path="res://cenas/Ovelha.tscn" id="11_ovelha"]
 [ext_resource type="Script" path="res://scripts/LuzGlobal.gd" id="12_luz"]
+[ext_resource type="PackedScene" path="res://cenas/Vinheta.tscn" id="13_vinheta"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_o8b3u"]
 texture = ExtResource("2_adoo1")
@@ -301,6 +302,8 @@ position = Vector2(154, 190)
 position = Vector2(310, 142)
 
 [node name="HUD" parent="." unique_id=412191067 instance=ExtResource("3_yihtt")]
+
+[node name="Vinheta" parent="." instance=ExtResource("13_vinheta")]
 
 [node name="Barco" parent="." unique_id=1571091791 instance=ExtResource("4_mxc5g")]
 visible = false
