@@ -131,6 +131,10 @@ const RECEITAS: Dictionary = {
 @onready var tela_doente: SanidadeVisual = $SanidadeVisual
 @onready var tela_final: GameOver = $GameOver
 
+# O som do mundo: ambiências (vento/insetos), o crossfade da noite e o
+# pacote do pânico. A Main manda, ele obedece (ver Audio.gd).
+@onready var audio: Audio = $Audio
+
 var e_noite: bool = false
 var dia_atual: int = 1  # o dia atual do jogo (começa no DIA 1)
 
@@ -206,6 +210,20 @@ func _ready() -> void:
 	# SEGUNDO que o Status aplica a cada frame (ver _ligar_o_mundo).
 	_ligar_o_mundo()
 
+	# --- O som do mundo ---
+	# O vento entra junto com a pálpebra (o nó do áudio nasce em silêncio e
+	# sobe sozinho — ver Audio.gd) e os EFEITOS nascem mudos, porque a
+	# abertura é uma CENA: o John ainda não anda e não é hora de ouvir ovelha.
+	audio.ir_para_o_dia()
+	audio.definir_efeitos_ligados(false)
+
+	# Os passos do John são de GRAMA, e hoje ele anda por cima da água (a
+	# água não tem colisão — bug conhecido e aceito). Quem é dono do mapa é a
+	# Main, então é ela que aponta a camada de tiles do chão; o Player só
+	# pergunta a ela se está em chão firme antes de acender os passos.
+	if jogador:
+		jogador.camada_do_chao = $Terra
+
 	# --- Abertura: o despertar do dia 1 ---
 	_iniciar_a_abertura()
 
@@ -245,6 +263,10 @@ func _iniciar_a_abertura() -> void:
 
 	_ligar_o_mundo()
 
+	# E os efeitos do mundo também ligam: agora sim o John anda (passos) e as
+	# ovelhas podem berrar sem entregar que o mundo rodava no escuro.
+	audio.definir_efeitos_ligados(true)
+
 	# E o relógio do dia 1 começa a andar só agora
 	timer.start()
 
@@ -253,7 +275,7 @@ func _process(delta: float) -> void:
 	atualizar_luz_do_dia(delta)
 	atualizar_pensamentos(delta)
 	_atualizar_painel_do_barco()
-	_atualizar_sanidade_visual()
+	_atualizar_sanidade()
 
 	# --- Conversa com um NPC: durante ela o E é da fala, não do mundo ---
 	if dialogo_ativo:
@@ -653,6 +675,10 @@ func _comecar_a_noite() -> void:
 	# O céu escurece devagar (quem faz a rampa é o atualizar_luz_do_dia)
 	transicao_do_anoitecer = 0.0
 
+	# E o som troca junto com o céu: o vento sai, os insetos entram. O
+	# crossfade do Audio leva os mesmos 4s da rampa da luz — de propósito.
+	audio.ir_para_a_noite()
+
 	# E a sanidade começa a escorrer: é o relógio da noite agora
 	Status.definir_taxa_sanidade_noturna(_por_segundo(SANIDADE_POR_DIA_NA_NOITE))
 
@@ -685,15 +711,18 @@ func atualizar_pensamentos(delta: float) -> void:
 			hud.mostrar_pensamento(PENSAMENTOS_DO_DIA[i]["texto"])
 
 # =====================================================================
-# SANIDADE NA TELA (o mundo "adoece" junto com a cabeça)
+# SANIDADE NA TELA E NO SOM (o mundo "adoece" junto com a cabeça)
 # =====================================================================
-# A conta da severidade mora AQUI (e não no nó que desenha) por dois motivos:
+# A conta da severidade mora AQUI (e não nos nós que obedecem) por dois
+# motivos:
 #   1) só a Main sabe quando o mundo está parado numa cena (dormir, abertura)
-#   2) a régua é a mesma da mecânica: a tela começa a fechar em
-#      LIMITE_SANIDADE_TELA (60%) e piora até a sanidade zerar.
+#   2) a régua é a mesma da mecânica: os dois efeitos começam em
+#      LIMITE_SANIDADE_TELA (60%) e pioram até a sanidade zerar.
+# Quem recebe a severidade: a SanidadeVisual (a tela fecha e a câmera treme)
+# e o Audio (respiração -> coração -> tempestade — a escadinha do Audio.gd).
 # A HUD e o painel do barco ficam de fora: no meio de um surto o jogador
 # ainda precisa conseguir ler a própria barra de sanidade.
-func _atualizar_sanidade_visual() -> void:
+func _atualizar_sanidade() -> void:
 	if jogador == null:
 		return
 
@@ -704,6 +733,7 @@ func _atualizar_sanidade_visual() -> void:
 			severidade = clampf(1.0 - Status.sanidade / limite, 0.0, 1.0)
 
 	tela_doente.definir_severidade(severidade)
+	audio.definir_panico(severidade)
 
 
 # =====================================================================
@@ -727,6 +757,10 @@ func game_over() -> void:
 	# O mundo para de correr (senão a fome continuaria caindo no escuro)
 	_parar_o_mundo()
 	timer.stop()
+
+	# E o som do mundo vai junto: a vinheta fecha no silêncio (a tempestade
+	# que estava tocando morre aqui, com a cabeça do John).
+	audio.calar()
 
 	# E o jogador sai do controle: não anda mais, o E não interage
 	if jogador:
@@ -766,6 +800,10 @@ func dormir() -> void:
 	# sendo cobrado explicitamente, em FOME_PERDIDA_AO_DORMIR, logo abaixo).
 	_parar_o_mundo()
 
+	# E o mundo fica MUDO: dormir é uma cena. Isto também abaixa os efeitos
+	# (passos, berros) — o John não está mais lá fora com os olhos abertos.
+	audio.calar()
+
 	# 1) A pálpebra fecha: a tela escurece por uma vinheta
 	await vinheta.fechar()
 
@@ -803,6 +841,9 @@ func dormir() -> void:
 
 	# Amanheceu: o dia novo volta a corroer o jogador
 	_ligar_o_mundo()
+
+	# E o som volta: manhã nova é vento (e os efeitos do mundo reabrem)
+	audio.ir_para_o_dia()
 
 	hud.mostrar_pensamento("Bom dia... o que será que me espera hoje?")
 

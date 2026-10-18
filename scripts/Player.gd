@@ -53,6 +53,40 @@ var barco_proximo: Barco = null
 var npc_proximo: NPC = null
 @onready var animacao: AnimatedSprite2D = $AnimatedSprite2D  # Referência ao nó de animação
 
+# =====================================================================
+# PASSOS NA GRAMA
+# =====================================================================
+# O PassoGrama.mp3 (4,7s) NÃO é "um passo": é um ciclo CONTÍNUO de passos na
+# grama — dá pra ver no envelope do próprio arquivo que não existe silêncio
+# entre as batidas. Então ele não é disparado a cada passo: fica tocando EM
+# LOOP enquanto o John anda, e quem trabalha é o VOLUME (acende rápido,
+# apaga devagar). Sem stop/play a cada passo não tem corte seco no ciclo.
+const PASSOS: AudioStream = preload("res://assets/audios/PassoGrama.mp3")
+
+const VOLUME_PASSOS_MUDO_DB: float = -80.0
+const SUBIDA_DOS_PASSOS_DB_S: float = 400.0   # liga em ~0,23s
+const DESCIDA_DOS_PASSOS_DB_S: float = 55.0   # apaga em ~1,7s
+
+@onready var passos: AudioStreamPlayer = $Passos
+
+## Volume dos passos com o John andando. O clipe é MUITO baixo por natureza
+## (pico 0.017): daí este valor positivo. Dá pra ajustar ao vivo no Inspector.
+@export var volume_passos_db: float = 12.0
+
+# Chão firme = tem tile da camada "Terra". Quem aponta a camada é a Main
+# (dona do mapa), no _ready dela. Sem camada, os passos assumem que é chão.
+var camada_do_chao: TileMapLayer = null
+
+
+func _ready() -> void:
+	# Loop marcado em CÓDIGO: os mp3 foram importados com loop=false, e
+	# marcar aqui não exige reimportar nem reabrir o editor (ver Audio.gd).
+	(PASSOS as AudioStreamMP3).loop = true
+	passos.stream = PASSOS
+	passos.volume_db = VOLUME_PASSOS_MUDO_DB
+	passos.play()
+
+
 func _physics_process(delta: float) -> void:
 	#movimentação
 	
@@ -82,6 +116,12 @@ func _physics_process(delta: float) -> void:
 		
 			_atualizar_animacao_parado()
 	
+	# --- Os passos: com o pé no chão e andando de verdade ---
+	# (a mesma condição do movimento lá em cima: quem está "coletando item"
+	#  fica parado, então também não faz barulho de passo)
+	var andando: bool = direcao != Vector2.ZERO and animacao.animation != "coletando item"
+	_atualizar_passos(andando, delta)
+
 	if Input.is_action_just_pressed("interagir") and not modo_construcao and not conversando and not em_cena:
 		_tentar_interagir()
 		
@@ -330,3 +370,34 @@ func tirar_item(slot_index: int) -> String:
 	inventario[slot_index] = ""
 	inventario_alterado.emit(slot_index, "")
 	return nome
+
+
+# =====================================================================
+# PASSOS: o volume caminha devagar até o alvo
+# =====================================================================
+# O volume sobe RÁPIDO (o jogador começou a andar: o som tem que aparecer)
+# e desce DEVAGAR (parou: a grama vai morrendo em vez de cortar no meio de
+# um passo). Não é tween porque não existe estado pra gerenciar — é só um
+# número que anda um pouco por frame, na direção do alvo.
+func _atualizar_passos(andando: bool, delta: float) -> void:
+	var alvo: float = VOLUME_PASSOS_MUDO_DB
+	if andando and _sobre_o_chao():
+		alvo = volume_passos_db
+
+	var velocidade_db_s: float = SUBIDA_DOS_PASSOS_DB_S if alvo > passos.volume_db else DESCIDA_DOS_PASSOS_DB_S
+	passos.volume_db = move_toward(passos.volume_db, alvo, velocidade_db_s * delta)
+
+
+# "Chão firme" = a célula debaixo do John tem tile na camada Terra.
+# Isso existe porque a água não tem colisão (bug conhecido e aceito): o John
+# consegue andar por cima do mar, e passo de GRAMA dentro do mar soa errado.
+func _sobre_o_chao() -> bool:
+	if camada_do_chao == null:
+		return true
+	return camada_do_chao.get_cell_source_id(camada_do_chao.local_to_map(global_position)) != -1
+
+
+# Na saída do jogo, cala o player: playback vivo na hora do desligamento vira
+# "instance leaked at exit" no console do Godot (sujeira de diagnóstico).
+func _exit_tree() -> void:
+	passos.stop()

@@ -25,3 +25,8 @@ shape = SubResource("RectangleShape2D_ovelha")
 [node name="TimerPasseio" type="Timer" parent="."]
 wait_time = 3.0
 one_shot = true
+
+[node name="Som" type="AudioStreamPlayer2D" parent="."]
+volume_db = -6.0
+max_distance = 420.0
+bus = &"Efeitos"

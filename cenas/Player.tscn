@@ -22,6 +22,9 @@ shape = SubResource("CircleShape2D_a3skv")
 [node name="AreaInteracao" type="Area2D" parent="." unique_id=25887742]
 scale = Vector2(1.588258, 0.7004636)
 
+[node name="Passos" type="AudioStreamPlayer" parent="." unique_id=880044001]
+bus = &"Efeitos"
+
 [node name="CollisionShape2D" type="CollisionShape2D" parent="AreaInteracao" unique_id=1689183363]
 position = Vector2(0, -7.138129)
 scale = Vector2(-1.060147, 1.7636774)

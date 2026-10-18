@@ -30,6 +30,11 @@ extends CharacterBody2D
 ## Quantos segundos ela fica parada entre um passeio e outro
 @export var tempo_parada: float = 3.0
 
+## Intervalo (em segundos) entre um berro e outro. O tempo é SORTEADO de
+## novo a cada berro: é o que impede as duas ovelhas de berrarem juntas pra
+## sempre (e de o berro virar um relógio).
+@export var intervalo_do_berro: Vector2 = Vector2(6.0, 16.0)
+
 
 # =====================================================================
 # REGRAS FIXAS (iguais pra todas as ovelhas)
@@ -44,6 +49,10 @@ const TEMPO_DE_TESTE: float = 1.0
 ## Se andou menos que esta fração do esperado no tempo de teste, é
 ## porque tem árvore/pedra na frente -> desiste do destino.
 const MINIMO_ESPERADO: float = 0.25
+
+## O clipe do berro é um "mé" único (1,8s, medido): toca UMA vez, e não em
+## loop. O pitch é sorteado a cada berro pra não parecer um disco riscado.
+const BERRO: AudioStream = preload("res://assets/audios/ovelha.mp3")
 
 
 # =====================================================================
@@ -63,13 +72,23 @@ var _posicao_anterior: Vector2
 var _tempo_do_teste: float = 0.0
 var _distancia_do_teste: float = 0.0
 
+# Tempo que falta pro próximo berro (ver _process)
+var tempo_do_berro: float = 0.0
+
 @onready var animacao: AnimatedSprite2D = $Animacao
 @onready var timer_passeio: Timer = $TimerPasseio
+@onready var som: AudioStreamPlayer2D = $Som
 
 
 func _ready() -> void:
 	ponto_de_casa = global_position
 	_posicao_anterior = global_position
+
+	som.stream = BERRO
+
+	# O primeiro berro demora mais que os outros: a ovelha não berra na cara
+	# de quem acabou de nascer no mapa (e a abertura é uma cena muda).
+	tempo_do_berro = randf_range(intervalo_do_berro.x * 1.5, intervalo_do_berro.y * 1.5)
 
 	# Jogador e ovelha se ignoram. Fica aqui, e não no Main, porque é um
 	# detalhe DA ovelha (o Main não precisa saber que ela existe).
@@ -85,6 +104,33 @@ func _ready() -> void:
 	# Cada ovelha começa num tempo sorteado, senão todas saem andando no
 	# mesmo instante e fica robótico (dá pra ver que é script).
 	timer_passeio.start(randf_range(0.3, tempo_parada))
+
+
+# O berro anda no _process (e NÃO no _physics_process) de propósito: o
+# _physics_process da ovelha dá return quando ela está parada — e é
+# justamente parada que ela passa a maior parte da vida.
+func _process(delta: float) -> void:
+	tempo_do_berro -= delta
+	if tempo_do_berro > 0.0:
+		return
+
+	tempo_do_berro = randf_range(intervalo_do_berro.x, intervalo_do_berro.y)
+	_berrar()
+
+
+# Um berro: o pitch muda a cada vez (a ovelha "fala" diferente toda vez).
+# O VOLUME não é tocado aqui de propósito: quem manda nele é a distância —
+# é um AudioStreamPlayer2D, então o próprio motor abaixa se ela estiver
+# longe do ouvido (o volume base está no nó, no Inspector).
+func _berrar() -> void:
+	som.pitch_scale = randf_range(0.92, 1.08)
+	som.play()
+
+
+# Na saída do jogo, cala o berro (playback vivo no desligamento vira
+# "instance leaked at exit" no console do Godot).
+func _exit_tree() -> void:
+	som.stop()
 
 
 func _physics_process(delta: float) -> void:
