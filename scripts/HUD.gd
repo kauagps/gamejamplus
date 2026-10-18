@@ -12,6 +12,9 @@ extends CanvasLayer
 # (regra do projeto: "call down, signal up" — o HUD só PEDE, o Main cria)
 signal construcao_solicitada(tipo: String)
 
+# Sinal que o Main escuta quando o jogador clica num slot do inventário
+signal slot_usado(slot_index: int)
+
 
 # --- BARRAS (cada frame do sprite = uma porcentagem) ------------------
 @onready var barra_vida: AnimatedSprite2D = $ContainerPrincipal/BarraVida
@@ -73,6 +76,13 @@ func _ready() -> void:
 			push_error("HUD: esperava 3 slots TextureRect, encontrou ", slots.size())
 	else:
 		push_error("HUD: não achei '$ContainerPrincipal/SlotsInventario'")
+
+	# -----------------------------------------------------------------
+	# 4) CLIQUE NO SLOT (usar o item: comer, etc.)
+	# -----------------------------------------------------------------
+	for i in slots.size():
+		slots[i].mouse_filter = Control.MOUSE_FILTER_STOP
+		slots[i].gui_input.connect(_on_slot_gui_input.bind(i))
 
 	for slot in slots:
 		# Ícone 64x64 centralizado dentro do slot de 80x80
@@ -230,3 +240,9 @@ func _on_Player_inventario_alterado(slot_index: int, item_name: String) -> void:
 		push_warning("HUD: o item '%s' não está no CatalogoItens!" % item_name)
 		icone = preload("res://assets/items/placeholder.png")
 	slot.texture = icone
+
+# Clique com o botão esquerdo num slot = "usar este item".
+# A HUD não decide nada: ela só avisa o Main (regra call down, signal up).
+func _on_slot_gui_input(evento: InputEvent, indice: int) -> void:
+	if evento is InputEventMouseButton and evento.pressed and evento.button_index == MOUSE_BUTTON_LEFT:
+		slot_usado.emit(indice)

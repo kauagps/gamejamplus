@@ -29,3 +29,32 @@ func mudar_fome(quantidade: float) -> void:
 func mudar_sanidade(quantidade: float) -> void:
 	sanidade = clamp(sanidade + quantidade, 0.0, sanidade_maximo)
 	sanidade_alterada.emit(sanidade, sanidade_maximo)
+
+
+# =====================================================================
+# DESGASTE NATURAL (a fome caindo com o tempo)
+#
+# Quem CALCULA as taxas é o Main, porque só ele sabe quanto dura um dia
+# no jogo (TimerDiaNoite). Aqui a gente só APLICA, frame a frame.
+# =====================================================================
+
+# Quantos pontos de fome caem por segundo
+var taxa_fome_por_segundo: float = 0.0
+
+# Quantos pontos de sanidade caem por segundo QUANDO a fome está zerada
+var taxa_sanidade_com_fome_zero: float = 0.0
+
+func definir_taxas_de_desgaste(fome_por_segundo: float, sanidade_com_fome_zero_por_segundo: float) -> void:
+	taxa_fome_por_segundo = fome_por_segundo
+	taxa_sanidade_com_fome_zero = sanidade_com_fome_zero_por_segundo
+
+func _process(delta: float) -> void:
+	if fome > 0.0:
+		# Com o estômago cheio, quem sofre é a barriga
+		if taxa_fome_por_segundo > 0.0:
+			mudar_fome(-taxa_fome_por_segundo * delta)
+		return
+
+	# De barriga vazia, quem sofre é a cabeça
+	if taxa_sanidade_com_fome_zero > 0.0 and sanidade > 0.0:
+		mudar_sanidade(-taxa_sanidade_com_fome_zero * delta)

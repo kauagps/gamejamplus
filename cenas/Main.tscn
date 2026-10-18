@@ -281,6 +281,11 @@ position = Vector2(-825, 63)
 scale = Vector2(0.27379483, 0.3274088)
 nome_do_item = "pedra"
 
+[node name="Item4" parent="Node/Recursos" unique_id=1138577204 instance=ExtResource("4_8tf0g")]
+position = Vector2(-790, 63)
+scale = Vector2(0.27379483, 0.3274088)
+nome_do_item = "comida"
+
 [node name="HUD" parent="." unique_id=412191067 instance=ExtResource("3_yihtt")]
 
 [node name="Barco" parent="." unique_id=1571091791 instance=ExtResource("4_mxc5g")]

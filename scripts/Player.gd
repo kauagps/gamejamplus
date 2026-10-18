@@ -197,3 +197,28 @@ func consumir_itens(necessarios: Array) -> bool:
 				emit_signal("inventario_alterado", i, "")  # HUD limpa o slot
 				break
 	return true
+
+# Usa o item de um slot (hoje: comer). O efeito vem do CatalogoItens, então
+# um item novo com efeito não precisa mexer neste código.
+# Retorna false se o slot está vazio ou se o item não tem utilidade.
+func usar_item(slot_index: int) -> bool:
+	if slot_index < 0 or slot_index >= inventario.size():
+		return false
+
+	var nome: String = inventario[slot_index]
+	if nome == "" or not CatalogoItens.pode_usar(nome):
+		return false
+
+	# Aplica os efeitos declarados no catálogo (ex: comida -> { "fome": 50 })
+	var efeito: Dictionary = CatalogoItens.efeitos(nome)
+	if efeito.has("fome"):
+		Status.mudar_fome(efeito["fome"])
+	if efeito.has("vida"):
+		Status.mudar_vida(efeito["vida"])
+	if efeito.has("sanidade"):
+		Status.mudar_sanidade(efeito["sanidade"])
+
+	# Consumiu: o slot esvazia e a HUD se atualiza pelo sinal
+	inventario[slot_index] = ""
+	inventario_alterado.emit(slot_index, "")
+	return true

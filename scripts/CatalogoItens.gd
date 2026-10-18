@@ -13,6 +13,10 @@ extends RefCounted
 # "sprite" = imagem que aparece no CHÃO (Item.tscn)
 # "icone"  = imagem que aparece no HUD (slot do inventário)
 # Se for a mesma imagem, use o mesmo caminho nos dois.
+#
+# "efeitos" (opcional) = o que acontece ao USAR o item no inventário
+# (ex: { "fome": 50.0 } = comer e recuperar 50 de fome). Item sem
+# "efeitos" é só material de construção — não dá pra usar.
 # =====================================================================
 const ITENS: Dictionary = {
 	"madeira": {
@@ -22,6 +26,10 @@ const ITENS: Dictionary = {
 	"comida": {
 		"sprite": preload("res://assets/items/M_Idle.png"),
 		"icone": preload("res://assets/items/M_Idle.png"),
+		# "efeitos" = o que acontece ao USAR o item no inventário (clicar no slot).
+		# Comer devolve fome. Repare no tamanho: a barra cai 100 por dia, então
+		# 1 carne (50) = meio dia de comida.
+		"efeitos": { "fome": 50.0 },
 	},
 	"pedra": {
 		"sprite": preload("res://assets/items/pedra.png"),
@@ -44,3 +52,13 @@ static func icone(nome: String) -> Texture2D:
 	if ITENS.has(nome):
 		return ITENS[nome]["icone"]
 	return null
+
+# O que acontece ao USAR o item (dicionário vazio = não dá pra usar)
+static func efeitos(nome: String) -> Dictionary:
+	if ITENS.has(nome) and ITENS[nome].has("efeitos"):
+		return ITENS[nome]["efeitos"]
+	return {}
+
+# O item tem alguma utilidade dentro do inventário? (comer, curar...)
+static func pode_usar(nome: String) -> bool:
+	return not efeitos(nome).is_empty()

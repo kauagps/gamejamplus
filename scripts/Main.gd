@@ -3,6 +3,19 @@ extends Node2D
 # Distância (em pixels) que a prévia fica à frente do jogador
 const DISTANCIA_CONSTRUCAO: float = 32.0
 
+# --- FOME ---
+# Quanto da barra de fome o jogador perde por dia (em pontos).
+# 100 = a barra inteira em um dia, que foi o que você escolheu.
+# Como a conta abaixo usa a duração REAL do dia (TimerDiaNoite), mudar o
+# wait_time do timer no Inspector já ajusta a velocidade da fome sozinho.
+const FOME_POR_DIA: float = 100.0
+
+# Quanto de sanidade cai por dia quando a fome está zerada
+const SANIDADE_POR_DIA_SEM_COMIDA: float = 50.0
+
+# Quanto de fome dormir custa (1/4 do consumo de um dia inteiro)
+const FOME_PERDIDA_AO_DORMIR: float = FOME_POR_DIA * 0.25
+
 # Receitas: o que cada construção custa.
 # "custo" usa os MESMOS nomes que os itens do inventário.
 const RECEITAS: Dictionary = {
@@ -45,6 +58,18 @@ func _ready() -> void:
 	if jogador:
 		jogador.dormir_solicitado.connect(dormir)
 
+	# Clique num slot do inventário = usar o item (comer)
+	hud.slot_usado.connect(_on_slot_usado)
+
+	# --- Taxas de desgaste ---
+	# Um "dia" do jogo = dia + noite, ou seja, 2x o wait_time do TimerDiaNoite.
+	# Daí saem as taxas POR SEGUNDO que o Status aplica a cada frame.
+	var duracao_do_dia: float = timer.wait_time * 2.0
+	Status.definir_taxas_de_desgaste(
+		FOME_POR_DIA / duracao_do_dia,
+		SANIDADE_POR_DIA_SEM_COMIDA / duracao_do_dia
+	)
+
 func _process(_delta: float) -> void:
 	# --- Modo de construção: a prévia (fantasma) segue o jogador ---
 	if fantasma != null:
@@ -56,6 +81,22 @@ func _process(_delta: float) -> void:
 			_confirmar_construcao()
 		elif Input.is_action_just_pressed("ui_cancel"):
 			_cancelar_construcao()
+
+# =====================================================================
+# USO DE ITENS (clique no slot do inventário)
+# =====================================================================
+func _on_slot_usado(slot_index: int) -> void:
+	if jogador == null:
+		return
+
+	var nome: String = jogador.inventario[slot_index]
+	if nome == "":
+		return  # slot vazio: clicar nele não faz nada
+
+	if jogador.usar_item(slot_index):
+		return  # deu certo: a barra sobe e o slot esvazia sozinhos
+
+	hud.mostrar_aviso("Não dá pra usar " + nome + " ainda")
 
 # =====================================================================
 # CONSTRUÇÃO
@@ -157,3 +198,6 @@ func dormir() -> void:
 	# Acorda descansado: sanidade cheia
 	# (mudar_sanidade SOMA e faz clamp, então passar o máximo devolve tudo)
 	Status.mudar_sanidade(Status.sanidade_maximo)
+
+	# ...mas dormir também gasta energia: custa um pedaço da fome
+	Status.mudar_fome(-FOME_PERDIDA_AO_DORMIR)
