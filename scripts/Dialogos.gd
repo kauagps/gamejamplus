@@ -34,7 +34,11 @@ const FALAS: Dictionary = {
 			"A ilha não é gentil depois que o sol cai. Durma sempre que anoitecer.",
 		],
 		2: [
-			"Já achou madeira suficiente? Com duas e uma pedra eu te ajudo a levantar um abrigo.",
+			# Dia 2: a família notou o sumiço da carne da noite anterior (roteiro).
+			# Ele é o que "caça o que anda na mata" — é o que deixa o John intrigado.
+			"Alguém andou por aqui de madrugada. A carne do varal desapareceu.",
+			"Se foi você, devolve. Se não foi, é pior: tem bicho rondando a casa.",
+			"Eu caço o que anda na mata, moço. Não te afasta daqui depois que escurecer.",
 		],
 		3: [
 			"Todo mundo aqui chegou de barco. Nenhum voltou pelo mesmo caminho.",
@@ -46,7 +50,11 @@ const FALAS: Dictionary = {
 			"Ele disse que você veio do mar. É verdade?",
 		],
 		2: [
-			"Eu vi uma ovelha pulando perto do mato. Ela faz assim, ó!",
+			# Dia 2: o pai saiu de patrulha e a criança não tem filtro nenhum —
+			# fala do sumiço e dos "bichos" como se fosse a coisa mais normal.
+			"Papai saiu pra caçar. Ele sempre volta quando o sol começa a descer.",
+			"Tem bicho na mata que anda em pé, igual você. Eles também têm medo?",
+			"A mamãe disse que a carne sumiu. Você tá com fome de novo?",
 		],
 		3: [
 			"Meu pai fica sério quando fala do barco. Acho que é coisa de gente grande.",
@@ -58,7 +66,11 @@ const FALAS: Dictionary = {
 			"Se precisar comer, guarda a carne no inventário. Fome aqui não perdoa.",
 		],
 		2: [
-			"À noite eu não saio de perto de casa. Você também não deveria.",
+			# Dia 2: ela é o lado doméstico e o mais assustador — a última fala
+			# é o que faz o John duvidar do que viu na noite do roubo.
+			"Não chega muito perto dele hoje. O Marcelo está de mau humor.",
+			"Ninguém dorme direito numa casa onde falta comida.",
+			"Você está pálido. Parece até que viu uma coisa que não estava lá.",
 		],
 		3: [
 			"O barco tá lá no canto da praia. Um dia a gente conserta ele, se você sobreviver o bastante.",
