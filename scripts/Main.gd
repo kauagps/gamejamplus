@@ -103,6 +103,23 @@ const ABERTURA_PENSAMENTOS: Array[String] = [
 const ABERTURA_DURACAO_PENSAMENTO: float = 2.6
 const ABERTURA_PAUSA: float = 0.4
 
+# --- DICAS DE PRIMEIRA VEZ (o inventário) ---
+# Duas coisas do jogo só se descobrem apertando a tecla errada: que o Q larga
+# e que o slot se CLICA pra comer. A abertura não ensina isso (ela só ensina
+# que o E pega), então aqui vão duas dicas que aparecem UMA vez por partida,
+# na primeira vez que a coisa acontece — no aviso dourado, que é o canal dos
+# controles ("Clique no item que quer largar", "E constrói · Esc desiste").
+#
+# A dica do Q é a primeira: ela sai na primeira vez que QUALQUER item entra
+# na mochila. A do comer sai na primeira vez que entra um ALIMENTO — e se o
+# primeiro item já for comida (o arbusto da fruta está do lado do spawn), as
+# duas vencem juntas e saem em FILA (ver _atualizar_dicas).
+const DICA_LARGAR: String = "Aperte Q para largar um item da mochila."
+const DICA_COMER: String = "Clique em um alimento da mochila para comer."
+
+# As dicas ficam bem mais tempo que os 2s dos recados: elas não se repetem.
+const DURACAO_DICA: float = 4.5
+
 # --- HISTÓRIA DA MADRUGADA (o cartão no meio da tela) ---
 # A chave é o DIA QUE ACABOU DE TERMINAR: a noite do dia 1 é a chave 1.
 # O texto aparece por cima da vinheta (tela já preta) e SÓ SAI quando o
@@ -182,6 +199,18 @@ var tempo_do_recado_de_largar: float = 0.0  # ver _process
 # é o tempo que falta pra repetir o "E constrói · Esc desiste" na tela.
 var tempo_do_recado_de_construcao: float = 0.0  # ver _process
 
+# --- Dicas de primeira vez (ver _on_inventario_alterado e _atualizar_dicas) ---
+# As duas flags dizem se a lição JÁ foi dada nesta partida. Começam false (a
+# primeira coleta ensina) e não voltam — trocar de dia não reensina.
+var ja_ensinou_o_q: bool = false
+var ja_ensinou_a_comer: bool = false
+
+# A fila existe pro caso do primeiro item já ser comida: as duas dicas vencem
+# no mesmo instante, e o aviso dourado é UM label só — mostrar as duas juntas
+# faria a segunda apagar a primeira. Então uma entra na fila atrás da outra.
+var fila_de_dicas: Array[String] = []
+var tempo_da_dica: float = 0.0  # quanto falta da dica que está na tela
+
 # --- Conversa com NPC ---
 var dialogo_ativo: bool = false   # trava: só uma conversa por vez
 var _frame_do_dialogo: int = -1   # ver _atualizar_dialogo (guarda o E do mesmo frame)
@@ -226,6 +255,10 @@ func _ready() -> void:
 		# Entregar material ao barco: o Player diz que o jogador quer; quem
 		# desconta o inventário e alimenta o Barco é a Main (dona do fluxo).
 		jogador.barco_solicitado.connect(_on_barco_solicitado)
+
+		# Item entrando na mochila: o Player avisa (call down, signal up) e a
+		# Main dá as dicas de primeira vez do inventário (ver _on_inventario_alterado).
+		jogador.inventario_alterado.connect(_on_inventario_alterado)
 
 	# Clique num slot do inventário = usar o item (comer)
 	hud.slot_usado.connect(_on_slot_usado)
@@ -323,6 +356,7 @@ func _process(delta: float) -> void:
 	atualizar_pensamentos(delta)
 	_atualizar_painel_do_barco()
 	_atualizar_sanidade()
+	_atualizar_dicas(delta)
 
 	# --- Conversa com um NPC: durante ela o E é da fala, não do mundo ---
 	if dialogo_ativo:
@@ -362,6 +396,55 @@ func _process(delta: float) -> void:
 			if tempo_do_recado_de_largar <= 0.0:
 				tempo_do_recado_de_largar = INTERVALO_RECADO_LARGAR
 				hud.mostrar_aviso(RECADO_LARGAR)
+
+# =====================================================================
+# DICAS DE PRIMEIRA VEZ (o tutorial do inventário)
+# =====================================================================
+# O item entra na mochila SEMPRE pelo mesmo funil: Player.pegar_item ->
+# sinal inventario_alterado (a fruta do arbusto também passa por ele, porque
+# o arbusto é um Item como outro qualquer). Por isso esta é a única escuta
+# de que o jogo precisa — e por isso ela roda pra QUALQUER item novo que o
+# artista adicionar depois, sem mexer aqui.
+#
+# O mesmo sinal avisa quando o item SAI (comido, largado, gasto na
+# construção): nesses casos o nome vem vazio. É o filtro da primeira linha.
+func _on_inventario_alterado(_slot: int, nome: String) -> void:
+	if nome == "":
+		return  # item SAINDO da mochila: não é hora de ensinar nada
+
+	# 1ª lição: o Q (largar). Sai na primeira coisa que ele pegar.
+	if not ja_ensinou_o_q:
+		ja_ensinou_o_q = true
+		fila_de_dicas.append(DICA_LARGAR)
+
+	# 2ª lição: o clique (comer). Só na primeira vez que pegar um ALIMENTO —
+	# e quem responde "isso é comida?" é o Catálogo (pode_usar = tem efeito
+	# ao usar), não uma lista de nomes aqui dentro. Carne, fruta... e o que
+	# vier depois já nasce ensinado.
+	if not ja_ensinou_a_comer and CatalogoItens.pode_usar(nome):
+		ja_ensinou_a_comer = true
+		fila_de_dicas.append(DICA_COMER)
+
+
+# A fila anda no _process, uma dica por vez, esperando a anterior sair da
+# tela: o aviso dourado é um label só, e a segunda dica apagaria a primeira.
+func _atualizar_dicas(delta: float) -> void:
+	# O relógio da dica que está na tela corre SEMPRE, mesmo com a fila vazia
+	# — é ele que diz quando a próxima pode entrar. (Se ele só corresse com
+	# fila cheia, a dica seguinte esperaria os 4,5s de novo, atrasada.)
+	if tempo_da_dica > 0.0:
+		tempo_da_dica -= delta
+
+	# Mas a dica nova não nasce com o John preso numa cena (abertura,
+	# cutscene, sono): ela espera na fila em vez de aparecer atrás do preto.
+	if (jogador and jogador.em_cena) or dormindo:
+		return
+	if tempo_da_dica > 0.0 or fila_de_dicas.is_empty():
+		return
+
+	tempo_da_dica = DURACAO_DICA
+	hud.mostrar_aviso(fila_de_dicas.pop_front(), DURACAO_DICA)
+
 
 # =====================================================================
 # USO DE ITENS (clique no slot do inventário)

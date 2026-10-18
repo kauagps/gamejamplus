@@ -366,10 +366,13 @@ func _criar_aviso() -> void:
 	timer_aviso.timeout.connect(_esconder_aviso)
 	add_child(timer_aviso)
 
-func mostrar_aviso(texto: String) -> void:
+# "duracao" é o tempo que ele fica na tela. O padrão (2s) é o dos recados de
+# modo, que a Main RENOVA enquanto o modo durar — por isso são curtos. As
+# dicas de primeira vez pedem mais tempo: quem não repetiu, some e acabou.
+func mostrar_aviso(texto: String, duracao: float = 2.0) -> void:
 	label_aviso.text = texto
 	label_aviso.visible = true
-	timer_aviso.start(2.0)
+	timer_aviso.start(duracao)
 
 func _esconder_aviso() -> void:
 	esconder_aviso()
