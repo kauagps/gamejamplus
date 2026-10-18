@@ -30,6 +30,11 @@ var modo_construcao: bool = false
 # interage (nesse momento o E é da Main, que avança a fala).
 var conversando: bool = false
 
+# Enquanto true, o jogador está dentro de uma CENA (a vinheta de dormir, o
+# cartão de história). Trava igual à conversa, pelo mesmo motivo: nada de
+# sair andando no escuro nem de o E do cartão pegar um item do chão.
+var em_cena: bool = false
+
 @onready var area_interacao: Area2D = $AreaInteracao
 @onready var item_proximo: Item = null
 
@@ -45,10 +50,10 @@ func _physics_process(delta: float) -> void:
 	
 	var direcao: Vector2 = Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
 
-	# Numa conversa o jogador fica preso no lugar. Como a direção vira zero,
-	# ele continua na animação de parado — ou seja, segue "respirando"
-	# enquanto ouve o NPC.
-	if conversando:
+	# Numa conversa (ou numa cena) o jogador fica preso no lugar. Como a
+	# direção vira zero, ele continua na animação de parado — ou seja, segue
+	# "respirando" enquanto ouve o NPC.
+	if conversando or em_cena:
 		direcao = Vector2.ZERO
 
 # 2. Aplica movimento SE NÃO ESTAMOS NO MEIO DE UMA ANIMAÇÃO DE COLETA
@@ -69,7 +74,7 @@ func _physics_process(delta: float) -> void:
 		
 			_atualizar_animacao_parado()
 	
-	if Input.is_action_just_pressed("interagir") and not modo_construcao and not conversando:
+	if Input.is_action_just_pressed("interagir") and not modo_construcao and not conversando and not em_cena:
 		_tentar_interagir()
 		
 

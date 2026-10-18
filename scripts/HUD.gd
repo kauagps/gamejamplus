@@ -47,10 +47,20 @@ var timer_aviso: Timer
 
 # Pensamento do personagem (ex: "Está anoitecendo, preciso dormir.").
 # É um texto SEPARADO do aviso, com outro estilo e em outro lugar da tela:
-# o jogador aprende que dourado no topo = aviso do sistema, azulado no
-# rodapé = o personagem pensando.
+# o jogador aprende que dourado no topo = aviso do sistema, e azulado em
+# cima da cabeça do John = o personagem pensando.
 var label_pensamento: Label
 var timer_pensamento: Timer
+
+# A HUD precisa do jogador pra saber ONDE colocar o pensamento (ele fica em
+# cima da cabeça, acompanhando a câmera — ver _posicionar_pensamento).
+var jogador: Node2D = null
+
+# A "caixa invisível" do pensamento. O texto é centralizado na horizontal e
+# cresce pra CIMA (daí o alinhamento embaixo), como um balão de fala.
+const LARGURA_PENSAMENTO: float = 700.0
+const ALTURA_PENSAMENTO: float = 90.0
+const ALTURA_ACIMA_DA_CABECA: float = 46.0
 
 
 func _ready() -> void:
@@ -64,7 +74,7 @@ func _ready() -> void:
 	# -----------------------------------------------------------------
 	# 2) SINAL DO JOGADOR (inventário alterado)
 	# -----------------------------------------------------------------
-	var jogador: Node2D = get_tree().get_first_node_in_group("jogador")
+	jogador = get_tree().get_first_node_in_group("jogador")
 	if jogador:
 		jogador.inventario_alterado.connect(_on_Player_inventario_alterado)
 		jogador.dica_interacao.connect(_on_Player_dica_interacao)
@@ -176,24 +186,27 @@ func _esconder_aviso() -> void:
 
 
 # =====================================================================
-# PENSAMENTO DO PERSONAGEM (rodapé, criado por código igual ao aviso)
+# PENSAMENTO DO PERSONAGEM (acima da cabeça, criado por código igual ao aviso)
 # =====================================================================
 func _criar_pensamento() -> void:
 	label_pensamento = Label.new()
 	label_pensamento.name = "Pensamento"  # nome só pra achar no Remote inspector
 	label_pensamento.visible = false
 	label_pensamento.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label_pensamento.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	label_pensamento.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label_pensamento.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	# Azul-claro com CONTORNO escuro: assim o texto fica legível em cima do
 	# mapa (grama, água, árvore) sem precisar de painel/fundo atrás.
 	label_pensamento.add_theme_color_override("font_color", Color(0.86, 0.92, 1.0))
 	label_pensamento.add_theme_color_override("font_outline_color", Color(0.06, 0.07, 0.14, 0.9))
 	label_pensamento.add_theme_constant_override("outline_size", 8)
 	label_pensamento.add_theme_font_size_override("font_size", 26)
-	# Fica no rodapé (o aviso do sistema fica no topo): é o que separa
-	# visualmente "o personagem pensando" de "o jogo te avisando".
-	label_pensamento.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	label_pensamento.offset_top = -140.0
-	label_pensamento.offset_bottom = -100.0
+	# Âncora no canto (0,0) da tela: daqui pra frente quem manda na posição é
+	# o _process, que converte a posição do John no mundo pra coordenada de
+	# tela (é o que faz o balão "seguir" o jogador e a câmera).
+	label_pensamento.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	label_pensamento.size = Vector2(LARGURA_PENSAMENTO, ALTURA_PENSAMENTO)
 	add_child(label_pensamento)
 
 	timer_pensamento = Timer.new()
@@ -201,16 +214,37 @@ func _criar_pensamento() -> void:
 	timer_pensamento.timeout.connect(_esconder_pensamento)
 	add_child(timer_pensamento)
 
-# O Main chama isso quando o personagem "pensa" algo (o aviso de que a noite
-# está chegando). Fica na tela por alguns segundos e some sozinho.
-func mostrar_pensamento(texto: String, duracao: float = 4.0) -> void:
-	# Durante uma conversa o pensamento apareceria ATRÁS da caixa de diálogo
-	# (os dois ficam no rodapé). Ele é interrompido: a Main insiste de novo
-	# quando for a hora.
+
+func _process(_delta: float) -> void:
+	# Só recalcula enquanto está aparecendo (barato, mas sem desperdício)
+	if label_pensamento.visible:
+		_posicionar_pensamento()
+
+
+# Joga o balão pra cima da cabeça do John. O pulo do gato é a
+# canvas_transform: ela converte a posição do MUNDO pra coordenada de TELA
+# (a mesma em que a HUD vive), então o texto acompanha a câmera sozinho.
+func _posicionar_pensamento() -> void:
+	if jogador == null:
+		return
+
+	var na_tela: Vector2 = get_viewport().get_canvas_transform() * jogador.global_position
+	label_pensamento.position = Vector2(
+		na_tela.x - LARGURA_PENSAMENTO * 0.5,
+		na_tela.y - ALTURA_ACIMA_DA_CABECA - ALTURA_PENSAMENTO
+	)
+
+# O Main chama isso quando o personagem "pensa" algo. Fica na tela por alguns
+# segundos e some sozinho. (7s: tempo de ler andando, sem atrapalhar)
+func mostrar_pensamento(texto: String, duracao: float = 7.0) -> void:
+	# Durante uma conversa o pensamento apareceria ATRÁS da caixa de diálogo.
+	# Ele é interrompido: a Main insiste de novo quando for a hora.
 	if caixa_dialogo != null and caixa_dialogo.visible:
 		return
 
 	label_pensamento.text = texto
+	# Posiciona já neste frame: senão o balão pisca 1 frame no lugar antigo
+	_posicionar_pensamento()
 	label_pensamento.visible = true
 	timer_pensamento.start(duracao)
 

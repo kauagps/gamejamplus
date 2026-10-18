@@ -21,6 +21,7 @@
 [ext_resource type="SpriteFrames" path="res://assets/Player/pai.tres" id="15_pai"]
 [ext_resource type="SpriteFrames" path="res://assets/Player/crianca.tres" id="16_crianca"]
 [ext_resource type="SpriteFrames" path="res://assets/Player/rosa.tres" id="17_rosa"]
+[ext_resource type="PackedScene" path="res://cenas/CartaoHistoria.tscn" id="18_cartao"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_o8b3u"]
 texture = ExtResource("2_adoo1")
@@ -326,6 +327,8 @@ frames = ExtResource("17_rosa")
 [node name="HUD" parent="." unique_id=412191067 instance=ExtResource("3_yihtt")]
 
 [node name="Vinheta" parent="." instance=ExtResource("13_vinheta")]
+
+[node name="CartaoHistoria" parent="." instance=ExtResource("18_cartao")]
 
 [node name="Barco" parent="." unique_id=1571091791 instance=ExtResource("4_mxc5g")]
 visible = false

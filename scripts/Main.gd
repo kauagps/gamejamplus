@@ -41,6 +41,14 @@ const PENSAMENTOS_DO_DIA: Array = [
 # De quanto em quanto tempo ele repete que precisa dormir, de noite
 const INTERVALO_PENSAMENTO_NOITE: float = 8.0
 
+# --- HISTÓRIA DA MADRUGADA (o cartão no meio da tela) ---
+# A chave é o DIA QUE ACABOU DE TERMINAR: a noite do dia 1 é a chave 1.
+# O texto aparece por cima da vinheta (tela já preta) e SÓ SAI quando o
+# jogador aperta E. Noite sem chave aqui = noite sem cartão, que é o normal.
+const HISTORIA_DA_MADRUGADA: Dictionary = {
+	1: "Durante a madrugada, você roubou um pedaço de carne da família de sobreviventes.",
+}
+
 # Receitas: o que cada construção custa.
 # "custo" usa os MESMOS nomes que os itens do inventário.
 const RECEITAS: Dictionary = {
@@ -60,6 +68,7 @@ const RECEITAS: Dictionary = {
 @onready var modulacao: LuzGlobal = $LuzGlobal
 @onready var hud: CanvasLayer = $HUD
 @onready var vinheta: Vinheta = $Vinheta
+@onready var cartao: CartaoHistoria = $CartaoHistoria
 @onready var node_construcoes: Node2D = $Node  # nó com y_sort_enabled
 @onready var jogador: Node2D = get_tree().get_first_node_in_group("jogador")
 
@@ -368,8 +377,23 @@ func dormir() -> void:
 
 	dormindo = true
 
+	# O jogador sai do controle: dormir é uma CENA. Sem isso ele andaria no
+	# escuro e o E que fecha o cartão de história também pegaria um item.
+	if jogador:
+		jogador.em_cena = true
+
+	# O sono também PARA o desgaste do mundo: nada de fome/sanidade caindo
+	# enquanto o jogador lê o cartão da madrugada (o gasto do sono continua
+	# sendo cobrado explicitamente, em FOME_PERDIDA_AO_DORMIR, logo abaixo).
+	Status.definir_taxa_sanidade_noturna(0.0)
+	Status.definir_taxas_de_desgaste(0.0, 0.0)
+
 	# 1) A pálpebra fecha: a tela escurece por uma vinheta
 	await vinheta.fechar()
+
+	# 1.5) Com a tela preta, a madrugada pode ser contada (se tiver história).
+	#      Isto só termina quando o jogador apertar E.
+	await _contar_a_madrugada()
 
 	# 2) O sono acontece no escuro: o jogador não vê o corte do amanhecer
 	e_noite = false
@@ -380,8 +404,7 @@ func dormir() -> void:
 	dia_atual += 1
 	hud.atualizar_contador_dias(dia_atual)
 
-	# A noite acabou: a sanidade para de escorrer
-	Status.definir_taxa_sanidade_noturna(0.0)
+	# (a sanidade da noite já parou lá em cima, junto com o desgaste)
 
 	# Acorda descansado: sanidade cheia
 	# (mudar_sanidade SOMA e faz clamp, então passar o máximo devolve tudo)
@@ -397,4 +420,27 @@ func dormir() -> void:
 	# 3) E a pálpebra abre (a vinheta inversa, do centro pra fora)
 	await vinheta.abrir()
 	dormindo = false
+	if jogador:
+		jogador.em_cena = false
+
+	# Amanheceu: o dia novo volta a corroer o jogador
+	Status.definir_taxas_de_desgaste(
+		_por_segundo(FOME_POR_DIA),
+		_por_segundo(SANIDADE_POR_DIA_SEM_COMIDA)
+	)
+
 	hud.mostrar_pensamento("Bom dia... o que será que me espera hoje?")
+
+
+# =====================================================================
+# HISTÓRIA DA MADRUGADA
+# =====================================================================
+# Roda com a tela já escura (dentro da vinheta). Se aquela noite tiver um
+# texto no HISTORIA_DA_MADRUGADA, ele aparece no meio da tela e o jogo só
+# continua quando o jogador aperta E.
+func _contar_a_madrugada() -> void:
+	if not HISTORIA_DA_MADRUGADA.has(dia_atual):
+		return
+
+	await get_tree().create_timer(0.5).timeout  # um respiro no escuro primeiro
+	await cartao.mostrar(HISTORIA_DA_MADRUGADA[dia_atual])
