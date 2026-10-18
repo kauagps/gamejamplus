@@ -60,7 +60,11 @@ var jogador: Node2D = null
 # cresce pra CIMA (daí o alinhamento embaixo), como um balão de fala.
 const LARGURA_PENSAMENTO: float = 700.0
 const ALTURA_PENSAMENTO: float = 90.0
-const ALTURA_ACIMA_DA_CABECA: float = 46.0
+
+# Altura (em pixels do MUNDO, não da tela) do fundo do balão acima dos pés
+# do John. O sprite dele ocupa de -31 (topo da cabeça) até +1, então 80
+# deixa o texto bem acima da cabeça, com um vão confortável.
+const ALTURA_ACIMA_DA_CABECA: float = 80.0
 
 
 func _ready() -> void:
@@ -235,8 +239,9 @@ func _posicionar_pensamento() -> void:
 	)
 
 # O Main chama isso quando o personagem "pensa" algo. Fica na tela por alguns
-# segundos e some sozinho. (7s: tempo de ler andando, sem atrapalhar)
-func mostrar_pensamento(texto: String, duracao: float = 7.0) -> void:
+# segundos e some sozinho. O padrão (5s) é o pensamento do dia a dia; a
+# abertura do jogo passa um tempo menor, porque lá são várias frases em fila.
+func mostrar_pensamento(texto: String, duracao: float = 5.0) -> void:
 	# Durante uma conversa o pensamento apareceria ATRÁS da caixa de diálogo.
 	# Ele é interrompido: a Main insiste de novo quando for a hora.
 	if caixa_dialogo != null and caixa_dialogo.visible:

@@ -48,8 +48,19 @@ func fechar() -> void:
 
 
 ## Abre a tela: a vinheta inversa, a escuridão se abrindo do centro pra fora.
-func abrir() -> void:
-	await _animar(1.0, 0.0, duracao_abrir)
+## Sem passar duração, usa a do Inspector (a do acordar depois de dormir).
+## Passando uma duração, ela abre naquele tempo — é o caso da ABERTURA do
+## jogo, que abre bem devagar, como quem levanta a pálpebra.
+func abrir(duracao: float = -1.0) -> void:
+	if duracao < 0.0:
+		duracao = duracao_abrir
+	await _animar(1.0, 0.0, duracao)
+
+
+## Fecha a tela NA HORA, sem animação: serve pra o jogo NASCER de olhos
+## fechados (senão o primeiro frame mostraria o mundo antes da vinheta).
+func fechar_de_uma_vez() -> void:
+	_aplicar(1.0)
 
 
 func _animar(de: float, para: float, duracao: float) -> void:

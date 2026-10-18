@@ -41,6 +41,27 @@ const PENSAMENTOS_DO_DIA: Array = [
 # De quanto em quanto tempo ele repete que precisa dormir, de noite
 const INTERVALO_PENSAMENTO_NOITE: float = 8.0
 
+# --- ABERTURA (o despertar do dia 1) ---
+# O jogo NÃO começa com o mundo ligado: ele nasce com a pálpebra fechada e
+# ela abre bem devagar (a do dormir é 1s; esta é bem mais lenta), como quem
+# abre os olhos depois de uma queda. Só depois disso o mundo começa a correr.
+const ABERTURA_DURACAO_DOS_OLHOS: float = 4.0
+
+# O tutorial mais barato que existe: sem caixa de instrução, sem seta
+# apontando. A própria "voz" do John, desnorteada, ensina o que fazer.
+# Ele pensa uma por vez, na ordem desta lista.
+const ABERTURA_PENSAMENTOS: Array[String] = [
+	"Onde... onde eu estou?",
+	"Estou com fome... e com frio.",
+	"Preciso sobreviver.",
+	"Tem gravetos e frutas ali. É melhor eu pegar.",
+]
+
+# Quanto cada pensamento da abertura fica na tela, e o respiro entre eles
+# (é um tempo menor que o normal: aqui são várias frases em fila)
+const ABERTURA_DURACAO_PENSAMENTO: float = 2.6
+const ABERTURA_PAUSA: float = 0.4
+
 # --- HISTÓRIA DA MADRUGADA (o cartão no meio da tela) ---
 # A chave é o DIA QUE ACABOU DE TERMINAR: a noite do dia 1 é a chave 1.
 # O texto aparece por cima da vinheta (tela já preta) e SÓ SAI quando o
@@ -97,8 +118,10 @@ var _frame_do_dialogo: int = -1   # ver _atualizar_dialogo (guarda o E do mesmo 
 func _ready() -> void:
 	# O timer conta SÓ o dia. A noite não tem relógio: ela acaba quando o
 	# jogador dorme (ver _comecar_a_noite).
+	# IMPORTANTE: ele não começa aqui embaixo. Quem dá a partida no relógio é
+	# a abertura, no fim do arquivo — senão o tutorial "desnorteado" comeria
+	# um pedaço do dia 1 com o John ainda parado, de olhos fechados.
 	timer.timeout.connect(_comecar_a_noite)
-	timer.start()
 
 	if jogador == null:
 		push_error("Main: não achei o Player no grupo 'jogador'!")
@@ -125,6 +148,52 @@ func _ready() -> void:
 		_por_segundo(FOME_POR_DIA),
 		_por_segundo(SANIDADE_POR_DIA_SEM_COMIDA)
 	)
+
+	# --- Abertura: o despertar do dia 1 ---
+	_iniciar_a_abertura()
+
+
+# =====================================================================
+# ABERTURA (o despertar do dia 1)
+# =====================================================================
+# O jogo nasce com os olhos fechados, abre devagar, e o John começa a
+# pensar desnorteado. É a cena de abertura E o tutorial, na mesma coisa.
+func _iniciar_a_abertura() -> void:
+	# 1) Nasce com a tela preta (sem animação: ninguém "vê" o preto nascer)
+	vinheta.fechar_de_uma_vez()
+
+	# 2) E o jogador também ainda "não acordou": não anda, o E não interage
+	if jogador:
+		jogador.em_cena = true
+
+	# 3) O mundo também espera. Ele acordou agora: ninguém perde fome
+	#    enquanto ouve a própria cabeça. (As taxas voltam no fim da cena.)
+	Status.definir_taxas_de_desgaste(0.0, 0.0)
+
+	# 4) Uns instantes de preto, e a pálpebra abre BEM devagar
+	await get_tree().create_timer(0.6).timeout
+	await vinheta.abrir(ABERTURA_DURACAO_DOS_OLHOS)
+
+	# 5) Um respiro de olhos abertos antes da primeira ideia
+	await get_tree().create_timer(0.4).timeout
+
+	# 6) Desnorteado, ele pensa uma frase por vez: é o tutorial
+	for pensamento in ABERTURA_PENSAMENTOS:
+		hud.mostrar_pensamento(pensamento, ABERTURA_DURACAO_PENSAMENTO)
+		await get_tree().create_timer(ABERTURA_DURACAO_PENSAMENTO + ABERTURA_PAUSA).timeout
+
+	# 7) Acabou o tutorial: o mundo liga de verdade
+	if jogador:
+		jogador.em_cena = false
+
+	Status.definir_taxas_de_desgaste(
+		_por_segundo(FOME_POR_DIA),
+		_por_segundo(SANIDADE_POR_DIA_SEM_COMIDA)
+	)
+
+	# E o relógio do dia 1 começa a andar só agora
+	timer.start()
+
 
 func _process(delta: float) -> void:
 	atualizar_luz_do_dia(delta)
@@ -308,6 +377,11 @@ func atualizar_luz_do_dia(delta: float) -> void:
 # Quanto do DIA já passou, de 0.0 a 1.0 (time_left conta pra trás).
 func _andado_do_dia() -> float:
 	if timer.wait_time <= 0.0:
+		return 0.0
+	# Antes de o relógio começar (a abertura do jogo), o dia ainda é 0%.
+	# Sem esta linha, o time_left de um timer parado (0) daria 100% e o céu
+	# nasceria no ponto do anoitecer.
+	if timer.is_stopped():
 		return 0.0
 	return clampf((timer.wait_time - timer.time_left) / timer.wait_time, 0.0, 1.0)
 
