@@ -35,12 +35,8 @@ const ICONE_FOGUEIRA := preload("res://assets/items/placeholder.png")
 const ICONE_ABRIGO := preload("res://assets/mapa/House_Yellow.png")
 
 # --- ÍCONES DOS ITENS -------------------------------------------------
-# W_Idle = tronco (madeira) | M_Idle = carne (comida) | placeholder = cinza
-var item_icons: Dictionary = {
-	"madeira": preload("res://assets/items/W_Idle.png"),
-	"comida": preload("res://assets/items/M_Idle.png"),
-	"pedra": preload("res://assets/items/placeholder.png"),
-}
+# Vêm do scripts/CatalogoItens.gd (fonte única de verdade: o mesmo lugar
+# onde o Item.tscn busca o sprite do chão)
 
 # Aviso na tela (ex: "Faltam materiais!"), criado por código
 var label_aviso: Label
@@ -217,11 +213,15 @@ func _on_Player_inventario_alterado(slot_index: int, item_name: String) -> void:
 		return
 
 	var slot: TextureRect = slots[slot_index]
+
 	if item_name == "":
 		# Slot esvaziado (ex: item gasto numa construção)
 		slot.texture = null
-	elif item_icons.has(item_name):
-		slot.texture = item_icons[item_name]
-	else:
-		# Item sem ícone cadastrado -> cinza provisório
-		slot.texture = preload("res://assets/items/placeholder.png")
+		return
+
+	var icone: Texture2D = CatalogoItens.icone(item_name)
+	if icone == null:
+		# Item fora do catálogo -> cinza provisório + aviso no log
+		push_warning("HUD: o item '%s' não está no CatalogoItens!" % item_name)
+		icone = preload("res://assets/items/placeholder.png")
+	slot.texture = icone

@@ -277,17 +277,10 @@ zoom = Vector2(4, 4)
 position = Vector2(256, 189)
 scale = Vector2(0.27379483, 0.3274088)
 
-[node name="Item2" parent="Node" unique_id=758016113 instance=ExtResource("4_8tf0g")]
-position = Vector2(405, 167)
+[node name="Item2" parent="Node" unique_id=895957431 instance=ExtResource("4_8tf0g")]
+position = Vector2(256, 189)
 scale = Vector2(0.27379483, 0.3274088)
-
-[node name="Item3" parent="Node" unique_id=316428526 instance=ExtResource("4_8tf0g")]
-position = Vector2(333, 159)
-scale = Vector2(0.27379483, 0.3274088)
-
-[node name="Item4" parent="Node" unique_id=1486679949 instance=ExtResource("4_8tf0g")]
-position = Vector2(403, 132)
-scale = Vector2(0.27379483, 0.3274088)
+nome_do_item = "comida"
 
 [node name="HUD" parent="." unique_id=412191067 instance=ExtResource("3_yihtt")]
 

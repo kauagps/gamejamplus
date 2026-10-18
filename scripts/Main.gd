@@ -133,4 +133,3 @@ func dormir() -> void:
 	# Dormir também avança para o dia seguinte
 	dia_atual += 1
 	hud.atualizar_contador_dias(dia_atual)
-
