@@ -25,6 +25,7 @@
 [ext_resource type="PackedScene" path="res://cenas/Arbustro.tscn" id="19_arbusto"]
 [ext_resource type="PackedScene" path="res://cenas/SanidadeVisual.tscn" id="20_sanidade"]
 [ext_resource type="PackedScene" path="res://cenas/GameOver.tscn" id="21_gameover"]
+[ext_resource type="PackedScene" path="res://cenas/Casa.tscn" id="22_casa"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_o8b3u"]
 texture = ExtResource("2_adoo1")
@@ -317,6 +318,9 @@ position = Vector2(154, 190)
 
 [node name="Ovelha2" parent="Node" instance=ExtResource("11_ovelha")]
 position = Vector2(310, 142)
+
+[node name="Casa" parent="Node" instance=ExtResource("22_casa")]
+position = Vector2(220, 330)
 
 [node name="Pai" parent="Node" instance=ExtResource("14_npc")]
 position = Vector2(180, 140)

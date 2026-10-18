@@ -1,0 +1,18 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/mapa/House_Blue.png" id="1_casa"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_base"]
+size = Vector2(116, 70)
+
+[node name="Casa" type="StaticBody2D"]
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, -35)
+shape = SubResource("RectangleShape2D_base")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+offset = Vector2(0, -76)
+texture = ExtResource("1_casa")
