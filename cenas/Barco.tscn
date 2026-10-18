@@ -1,0 +1,14 @@
+[gd_scene format=3 uid="uid://jn2f1bfxwf0v"]
+
+[ext_resource type="Texture2D" uid="uid://v5cu1276vqab" path="res://icon.svg" id="1_x0iwk"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_kclww"]
+size = Vector2(128, 126)
+
+[node name="Barco" type="Area2D" unique_id=1310223950]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=420174296]
+shape = SubResource("RectangleShape2D_kclww")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=1629897858]
+texture = ExtResource("1_x0iwk")

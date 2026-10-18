@@ -1,0 +1,102 @@
+[gd_scene format=3 uid="uid://c0h7x8j06astj"]
+
+[ext_resource type="Script" uid="uid://7tj2tliuw1uk" path="res://scripts/HUD.gd" id="1_kqorm"]
+[ext_resource type="SpriteFrames" uid="uid://3pash3xrfm0f" path="res://assets/ui/ui.tres" id="2_606ks"]
+
+[sub_resource type="CompressedTexture2D" id="CompressedTexture2D_606ks"]
+load_path = "res://.godot/imported/inventario-Sheet.png-4876ef7cc8cb5774cd1e5a6412590ae4.ctex"
+
+[node name="Hud" type="CanvasLayer" unique_id=412191067]
+script = ExtResource("1_kqorm")
+
+[node name="ContainerPrincipal" type="Control" parent="." unique_id=434553154]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="BarraVida" type="AnimatedSprite2D" parent="ContainerPrincipal" unique_id=1092600483]
+position = Vector2(1867, 47)
+scale = Vector2(1.583274, 1.5346357)
+sprite_frames = ExtResource("2_606ks")
+animation = &"sanidade"
+
+[node name="BarraSanidade" type="AnimatedSprite2D" parent="ContainerPrincipal" unique_id=288701091]
+position = Vector2(1867.0001, 85.99999)
+scale = Vector2(1.583274, 1.5346357)
+sprite_frames = ExtResource("2_606ks")
+animation = &"sanidade"
+
+[node name="BarraFome" type="AnimatedSprite2D" parent="ContainerPrincipal" unique_id=554376136]
+position = Vector2(1867.0001, 126)
+scale = Vector2(1.583274, 1.5346357)
+sprite_frames = ExtResource("2_606ks")
+animation = &"fome"
+
+[node name="Dias" type="AnimatedSprite2D" parent="ContainerPrincipal" unique_id=442571777]
+position = Vector2(1750, 38)
+scale = Vector2(1.583274, 1.5346357)
+sprite_frames = ExtResource("2_606ks")
+animation = &"dias"
+
+[node name="SlotsInventario" type="GridContainer" parent="ContainerPrincipal" unique_id=1033745900]
+layout_mode = 0
+offset_left = 876.0
+offset_top = 997.0
+offset_right = 956.0
+offset_bottom = 1245.0
+rotation = -1.5707964
+
+[node name="FundoSlot1" type="Sprite2D" parent="ContainerPrincipal/SlotsInventario" unique_id=1140952168]
+position = Vector2(50.61328, 38)
+rotation = 1.5707964
+scale = Vector2(2.322, 2)
+texture = SubResource("CompressedTexture2D_606ks")
+hframes = 4
+
+[node name="FundoSlot2" type="Sprite2D" parent="ContainerPrincipal/SlotsInventario" unique_id=1214052996]
+position = Vector2(50.61328, 121.59192)
+rotation = 1.5707964
+scale = Vector2(2.322, 2)
+texture = SubResource("CompressedTexture2D_606ks")
+hframes = 4
+frame = 1
+
+[node name="FundoSlot3" type="Sprite2D" parent="ContainerPrincipal/SlotsInventario" unique_id=1893179510]
+position = Vector2(50.61328, 206.34485)
+rotation = 1.5707964
+scale = Vector2(2.322, 2)
+texture = SubResource("CompressedTexture2D_606ks")
+hframes = 4
+frame = 2
+
+[node name="Slot1" type="TextureRect" parent="ContainerPrincipal/SlotsInventario" unique_id=10042588]
+custom_minimum_size = Vector2(80, 80)
+layout_mode = 2
+
+[node name="Slot2" type="TextureRect" parent="ContainerPrincipal/SlotsInventario" unique_id=1726316491]
+custom_minimum_size = Vector2(80, 80)
+layout_mode = 2
+
+[node name="Slot3" type="TextureRect" parent="ContainerPrincipal/SlotsInventario" unique_id=471167635]
+custom_minimum_size = Vector2(80, 80)
+layout_mode = 2
+
+[node name="BotoesConstrucao" type="VBoxContainer" parent="ContainerPrincipal" unique_id=2119357259]
+layout_mode = 0
+offset_left = 41.0
+offset_top = 29.0
+offset_right = 161.0
+offset_bottom = 397.0
+
+[node name="BtnFogueira" type="Button" parent="ContainerPrincipal/BotoesConstrucao" unique_id=2044489922]
+custom_minimum_size = Vector2(120, 120)
+layout_mode = 2
+
+[node name="BtnCama" type="Button" parent="ContainerPrincipal/BotoesConstrucao" unique_id=426391062]
+custom_minimum_size = Vector2(120, 120)
+layout_mode = 2
+
+[node name="BtnAbrigo" type="Button" parent="ContainerPrincipal/BotoesConstrucao" unique_id=1213347808]
+custom_minimum_size = Vector2(120, 120)
+layout_mode = 2

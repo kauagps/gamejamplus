@@ -1,0 +1,18 @@
+[gd_scene format=3 uid="uid://d3j7uecmm0ums"]
+
+[ext_resource type="Script" uid="uid://bidl2u04i5hn0" path="res://scripts/Item.gd" id="1_2b5ak"]
+[ext_resource type="Texture2D" uid="uid://dnr0heac3i0y2" path="res://assets/items/M_Idle.png" id="2_poxte"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_n6wxn"]
+size = Vector2(51, 37)
+
+[node name="Item" type="Area2D" unique_id=753979699 groups=["item"]]
+scale = Vector2(0.23973727, 0.24104957)
+script = ExtResource("1_2b5ak")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1314813903]
+position = Vector2(3.5, 13.5)
+shape = SubResource("RectangleShape2D_n6wxn")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=794106479]
+texture = ExtResource("2_poxte")
