@@ -1,0 +1,70 @@
+[gd_resource type="SpriteFrames" format=3]
+
+[ext_resource type="Texture2D" path="res://assets/mapa/aviaocaindo-01.png" id="1_8m52i"]
+[ext_resource type="Texture2D" path="res://assets/mapa/aviaocaindo-02.png" id="2_t5r7h"]
+[ext_resource type="Texture2D" path="res://assets/mapa/aviaocaindo-03.png" id="3_lwj8e"]
+[ext_resource type="Texture2D" path="res://assets/mapa/aviaocaindo-04.png" id="4_l2x7h"]
+[ext_resource type="Texture2D" path="res://assets/mapa/aviaocaindo-05.png" id="5_lhswc"]
+[ext_resource type="Texture2D" path="res://assets/mapa/aviaocaindo-06.png" id="6_dahs7"]
+[ext_resource type="Texture2D" path="res://assets/mapa/aviaocaindo-07.png" id="7_imaxd"]
+[ext_resource type="Texture2D" path="res://assets/mapa/aviaocaindo-08.png" id="8_eta7f"]
+[ext_resource type="Texture2D" path="res://assets/mapa/aviaocaindo-09.png" id="9_obtuf"]
+[ext_resource type="Texture2D" path="res://assets/mapa/aviaocaindo-10.png" id="10_vs1ga"]
+[ext_resource type="Texture2D" path="res://assets/mapa/aviaocaindo-11.png" id="11_ln58l"]
+[ext_resource type="Texture2D" path="res://assets/mapa/aviaocaindo-12.png" id="12_wa2bv"]
+[ext_resource type="Texture2D" path="res://assets/mapa/aviaocaindo-13.png" id="13_75073"]
+[ext_resource type="Texture2D" path="res://assets/mapa/aviaocaindo-14.png" id="14_w7l8q"]
+[ext_resource type="Texture2D" path="res://assets/mapa/aviaocaindo-15.png" id="15_pfymw"]
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("1_8m52i")
+}, {
+"duration": 1.0,
+"texture": ExtResource("2_t5r7h")
+}, {
+"duration": 1.0,
+"texture": ExtResource("3_lwj8e")
+}, {
+"duration": 1.0,
+"texture": ExtResource("4_l2x7h")
+}, {
+"duration": 1.0,
+"texture": ExtResource("5_lhswc")
+}, {
+"duration": 1.0,
+"texture": ExtResource("6_dahs7")
+}, {
+"duration": 1.0,
+"texture": ExtResource("7_imaxd")
+}, {
+"duration": 1.0,
+"texture": ExtResource("8_eta7f")
+}, {
+"duration": 1.0,
+"texture": ExtResource("9_obtuf")
+}, {
+"duration": 1.0,
+"texture": ExtResource("10_vs1ga")
+}, {
+"duration": 1.0,
+"texture": ExtResource("11_ln58l")
+}, {
+"duration": 1.0,
+"texture": ExtResource("12_wa2bv")
+}, {
+"duration": 1.0,
+"texture": ExtResource("13_75073")
+}, {
+"duration": 1.0,
+"texture": ExtResource("14_w7l8q")
+}, {
+"duration": 1.0,
+"texture": ExtResource("15_pfymw")
+}],
+"loop": 0,
+"name": &"caindo",
+"speed": 2.0
+}]

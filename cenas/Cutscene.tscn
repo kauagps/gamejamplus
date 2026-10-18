@@ -1,0 +1,35 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/Cutscene.gd" id="1_cut"]
+[ext_resource type="SpriteFrames" path="res://assets/mapa/aviaocaindo.tres" id="2_quadros"]
+[ext_resource type="AudioStream" path="res://assets/audios/AviaoVoando.mp3" id="3_som"]
+
+[node name="Cutscene" type="CanvasLayer"]
+layer = 105
+script = ExtResource("1_cut")
+
+[node name="Fundo" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 1)
+
+[node name="Quadros" type="AnimatedSprite2D" parent="."]
+position = Vector2(960, 540)
+sprite_frames = ExtResource("2_quadros")
+animation = &"caindo"
+
+[node name="Preto" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0, 0, 0, 0)
+
+[node name="Som" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("3_som")
+bus = &"Efeitos"

@@ -131,6 +131,7 @@ const RECEITAS: Dictionary = {
 @onready var hud: CanvasLayer = $HUD
 @onready var vinheta: Vinheta = $Vinheta
 @onready var cartao: CartaoHistoria = $CartaoHistoria
+@onready var cutscene: Cutscene = $Cutscene
 @onready var node_construcoes: Node2D = $Node  # nó com y_sort_enabled
 @onready var jogador: Node2D = get_tree().get_first_node_in_group("jogador")
 
@@ -231,19 +232,36 @@ func _ready() -> void:
 	# SEGUNDO que o Status aplica a cada frame (ver _ligar_o_mundo).
 	_ligar_o_mundo()
 
-	# --- O som do mundo ---
-	# O vento entra junto com a pálpebra (o nó do áudio nasce em silêncio e
-	# sobe sozinho — ver Audio.gd) e os EFEITOS nascem mudos, porque a
-	# abertura é uma CENA: o John ainda não anda e não é hora de ouvir ovelha.
-	audio.ir_para_o_dia()
-	audio.definir_efeitos_ligados(false)
-
 	# Os passos do John são de GRAMA, e hoje ele anda por cima da água (a
 	# água não tem colisão — bug conhecido e aceito). Quem é dono do mapa é a
 	# Main, então é ela que aponta a camada de tiles do chão; o Player só
 	# pergunta a ela se está em chão firme antes de acender os passos.
 	if jogador:
 		jogador.camada_do_chao = $Terra
+
+	# --- CUTSCENE DO PRÓLOGO: o avião caindo ---
+	# Antes de qualquer coisa: o mundo nasce de olhos fechados E parado, e é
+	# a cutscene que aparece por cima do preto (ela vive na camada 105, acima
+	# da vinheta). O som do mundo nasce calado — durante o prólogo quem manda
+	# no ouvido é o avião.
+	#
+	# Três coisas ficam travadas aqui: a pálpebra já fechada (senão o mundo
+	# apareceria por um frame antes da cena), o John (em_cena) e o relógio da
+	# fome/sanidade (_parar_o_mundo), que voltam na abertura logo abaixo.
+	audio.calar()
+	vinheta.fechar_de_uma_vez()
+	if jogador:
+		jogador.em_cena = true
+	_parar_o_mundo()
+
+	await cutscene.mostrar()
+
+	# --- Aí sim o som do mundo acorda ---
+	# O vento entra junto com a pálpebra (o nó do áudio nasce em silêncio e
+	# sobe sozinho — ver Audio.gd) e os EFEITOS nascem mudos, porque a
+	# abertura é uma CENA: o John ainda não anda e não é hora de ouvir ovelha.
+	audio.ir_para_o_dia()
+	audio.definir_efeitos_ligados(false)
 
 	# --- Abertura: o despertar do dia 1 ---
 	_iniciar_a_abertura()
