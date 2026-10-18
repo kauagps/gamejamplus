@@ -1,0 +1,41 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/CutsceneTerror.gd" id="1_terror"]
+[ext_resource type="Texture2D" path="res://assets/ui/imagemfinal.png" id="2_imagem"]
+[ext_resource type="AudioStream" path="res://assets/audios/estrondo.mp3" id="3_estrondo"]
+
+[node name="CutsceneTerror" type="CanvasLayer"]
+layer = 106
+script = ExtResource("1_terror")
+
+[node name="Preto" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 1)
+
+[node name="Imagem" type="TextureRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("2_imagem")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="Branco" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(1, 1, 1, 0)
+
+[node name="Estrondo" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("3_estrondo")
+bus = &"Efeitos"

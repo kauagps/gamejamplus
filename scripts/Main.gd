@@ -111,6 +111,13 @@ const HISTORIA_DA_MADRUGADA: Dictionary = {
 	1: "Durante a madrugada, você roubou um pedaço de carne da família de sobreviventes.",
 }
 
+# --- A NOITE DO TERROR (a cutscene final, o clarão) ---
+# A virada da noite do dia 2 pro dia 3 NÃO é um cartão de texto: é a cutscene
+# de terror (cenas/CutsceneTerror.tscn) — o estrondo, o clarão e a imagem da
+# lua mordida. Este número é o dia que ACABOU (a noite do 2 vira o dia 3);
+# mudar ele move a cena pra outra noite.
+const DIA_DO_TERROR: int = 2
+
 # Receitas: o que cada construção custa.
 # "custo" usa os MESMOS nomes que os itens do inventário.
 const RECEITAS: Dictionary = {
@@ -132,6 +139,7 @@ const RECEITAS: Dictionary = {
 @onready var vinheta: Vinheta = $Vinheta
 @onready var cartao: CartaoHistoria = $CartaoHistoria
 @onready var cutscene: Cutscene = $Cutscene
+@onready var cutscene_terror: CutsceneTerror = $CutsceneTerror
 @onready var node_construcoes: Node2D = $Node  # nó com y_sort_enabled
 @onready var jogador: Node2D = get_tree().get_first_node_in_group("jogador")
 
@@ -876,7 +884,15 @@ func dormir() -> void:
 
 	# 1.5) Com a tela preta, a madrugada pode ser contada (se tiver história).
 	#      Isto só termina quando o jogador apertar E.
-	await _contar_a_madrugada()
+	#
+	#      A NOITE DO DIA 2 é a exceção: lá a madrugada não é texto, é a
+	#      cutscene de terror (o clarão + a imagem final). Ela SUBSTITUI o
+	#      cartão daquela noite — texto depois de um susto desses só dilui.
+	#      As outras noites seguem no cartão de sempre.
+	if dia_atual == DIA_DO_TERROR:
+		await cutscene_terror.mostrar()
+	else:
+		await _contar_a_madrugada()
 
 	# 2) O sono acontece no escuro: o jogador não vê o corte do amanhecer
 	e_noite = false

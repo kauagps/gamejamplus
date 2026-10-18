@@ -28,6 +28,7 @@
 [ext_resource type="PackedScene" path="res://cenas/Casa.tscn" id="22_casa"]
 [ext_resource type="PackedScene" path="res://cenas/Audio.tscn" id="23_audio"]
 [ext_resource type="PackedScene" path="res://cenas/Cutscene.tscn" id="24_cutscene"]
+[ext_resource type="PackedScene" path="res://cenas/CutsceneTerror.tscn" id="25_terror"]
 
 [sub_resource type="Gradient" id="Gradient_luz"]
 offsets = PackedFloat32Array(0, 0.22, 0.38, 0.46, 0.52, 0.85, 1)
@@ -501,3 +502,5 @@ position = Vector2(498, 1243)
 [node name="GameOver" parent="." unique_id=651478357 instance=ExtResource("21_gameover")]
 
 [node name="Cutscene" parent="." instance=ExtResource("24_cutscene")]
+
+[node name="CutsceneTerror" parent="." instance=ExtResource("25_terror")]
