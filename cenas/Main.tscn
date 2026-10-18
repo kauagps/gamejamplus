@@ -308,7 +308,7 @@ position = Vector2(310, 142)
 [node name="Pai" parent="Node" instance=ExtResource("14_npc")]
 position = Vector2(180, 140)
 chave = "pai"
-nome_mostrado = "Pai"
+nome_mostrado = "Marcelo"
 frames = ExtResource("15_pai")
 
 [node name="Crianca" parent="Node" instance=ExtResource("14_npc")]
