@@ -160,6 +160,10 @@ func _ready() -> void:
 		# (que depende do dia_atual, que só o Main conhece) sai daqui.
 		jogador.conversa_solicitada.connect(_on_conversa_solicitada)
 
+		# Entregar material ao barco: o Player diz que o jogador quer; quem
+		# desconta o inventário e alimenta o Barco é a Main (dona do fluxo).
+		jogador.barco_solicitado.connect(_on_barco_solicitado)
+
 	# Clique num slot do inventário = usar o item (comer)
 	hud.slot_usado.connect(_on_slot_usado)
 
@@ -221,6 +225,7 @@ func _iniciar_a_abertura() -> void:
 func _process(delta: float) -> void:
 	atualizar_luz_do_dia(delta)
 	atualizar_pensamentos(delta)
+	_atualizar_painel_do_barco()
 
 	# --- Conversa com um NPC: durante ela o E é da fala, não do mundo ---
 	if dialogo_ativo:
@@ -479,6 +484,68 @@ func _fechar_dialogo() -> void:
 	await get_tree().physics_frame
 	if jogador:
 		jogador.conversando = false
+
+
+# =====================================================================
+# BARCO (objetivo final) — entregar madeira e pedra
+# =====================================================================
+# O E no barco é igual ao E na casa: o Player só AVISA que o jogador quer
+# entregar (signal barco_solicitado). Aqui a Main costura os três donos:
+#   - o inventário é do Player  -> retirar_itens_do_tipo()
+#   - a obra é do Barco         -> receber()
+#   - o painel é da HUD         -> mostrar_painel_do_barco()
+func _on_barco_solicitado(barco: Barco) -> void:
+	if barco == null or jogador == null:
+		return
+
+	if barco.esta_pronto():
+		hud.mostrar_aviso("O barco já está consertado")
+		return
+
+	# Entrega TUDO o que couber do que o jogador tem, de uma vez: a mochila
+	# só tem 3 slots e o barco pede 30 itens, então um por aperto seriam 30
+	# apertos. O limite de cada chamada é exatamente o que ainda falta.
+	var madeiras: int = jogador.retirar_itens_do_tipo("madeira", barco.falta_madeira())
+	var pedras: int = jogador.retirar_itens_do_tipo("pedra", barco.falta_pedra())
+
+	if madeiras == 0 and pedras == 0:
+		hud.mostrar_aviso("O barco precisa de madeira e pedra")
+		return
+
+	barco.receber(madeiras, pedras)
+
+	var partes: Array[String] = []
+	if madeiras > 0:
+		partes.append("%d madeira%s" % [madeiras, "" if madeiras == 1 else "s"])
+	if pedras > 0:
+		partes.append("%d pedra%s" % [pedras, "" if pedras == 1 else "s"])
+	hud.mostrar_aviso("Entregou " + " e ".join(partes))
+
+
+# Painel flutuante em cima do barco: aparece só com o John no alcance dele.
+# Roda todo frame porque ele também se reposiciona (o barco não anda, mas a
+# CÂMERA sim) e porque o texto muda quando o jogador pega/solta material.
+func _atualizar_painel_do_barco() -> void:
+	if jogador == null:
+		return
+
+	var barco: Barco = jogador.barco_proximo
+	if barco == null:
+		hud.esconder_painel_do_barco()
+		return
+
+	# "Dá pra interagir?" = o John tem alguma madeira ou pedra na mochila
+	var tem_material: bool = (
+		jogador.quantos_do_tipo("madeira") > 0
+		or jogador.quantos_do_tipo("pedra") > 0
+	)
+
+	hud.mostrar_painel_do_barco(
+		barco.falta_madeira(),
+		barco.falta_pedra(),
+		tem_material and not barco.esta_pronto(),
+		barco.global_position
+	)
 
 # =====================================================================
 # LUZ DO DIA (amanhecer / anoitecer procedural)

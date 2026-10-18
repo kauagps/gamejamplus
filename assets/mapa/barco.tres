@@ -1,0 +1,10 @@
+[gd_resource type="AtlasTexture" load_steps=2 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/mapa/barcoquebrado-Sheet.png" id="1_sheet"]
+
+; O barco quebrado. A sheet e 128x128, mas o desenho vive SO no primeiro
+; quadrante: conteudo em x 2..65, y 14..42 (a base do casco e y=42).
+; Este recorte (0,0,64,64) e o barco inteiro.
+[resource]
+atlas = ExtResource("1_sheet")
+region = Rect2(0, 0, 64, 64)

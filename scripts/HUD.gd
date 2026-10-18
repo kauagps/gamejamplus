@@ -68,6 +68,22 @@ const ALTURA_PENSAMENTO: float = 90.0
 # deixa o texto bem acima da cabeça, com um vão confortável.
 const ALTURA_ACIMA_DA_CABECA: float = 80.0
 
+# --- PAINEL DO BARCO (flutuante, em cima dele) ------------------------
+# Mostra o que ainda falta pra consertar (ícone + quantidade, com as MESMAS
+# artes do inventário) e se o John tem o que entregar. É criado por código,
+# como o aviso e o pensamento, e se posiciona pela conversão mundo -> tela.
+# A HUD não decide nada: a Main manda os números, a posição e o estado.
+const ALTURA_ACIMA_DO_BARCO: float = 108.0  # vão entre a base do barco e o painel
+const TAMANHO_ICONE_BARCO: float = 46.0     # lado do ícone de madeira/pedra
+
+var painel_barco: PanelContainer
+var estilo_painel_barco: StyleBoxFlat
+var label_falta_madeira: Label
+var label_falta_pedra: Label
+var label_instrucao_barco: Label
+var _posicao_do_barco: Vector2 = Vector2.ZERO
+var _painel_do_barco_na_tela: bool = false
+
 
 func _ready() -> void:
 	# -----------------------------------------------------------------
@@ -150,6 +166,7 @@ func _ready() -> void:
 	_criar_aviso()
 	_criar_pensamento()
 	_criar_caixa_dialogo()
+	_criar_painel_barco()
 
 
 # =====================================================================
@@ -225,6 +242,8 @@ func _process(_delta: float) -> void:
 	# Só recalcula enquanto está aparecendo (barato, mas sem desperdício)
 	if label_pensamento.visible:
 		_posicionar_pensamento()
+	if _painel_do_barco_na_tela:
+		_posicionar_painel_do_barco()
 
 
 # Joga o balão pra cima da cabeça do John. O pulo do gato é a
@@ -257,6 +276,160 @@ func mostrar_pensamento(texto: String, duracao: float = 5.0) -> void:
 
 func _esconder_pensamento() -> void:
 	label_pensamento.visible = false
+
+
+# =====================================================================
+# PAINEL DO BARCO (flutuante, em cima dele) — "o que falta pro conserto"
+# =====================================================================
+# Ele responde duas perguntas de uma vez, que é o que o jogador precisa
+# saber antes de apertar E:
+#   1) o que é necessário  -> ícone de madeira e de pedra + QUANTO FALTA
+#   2) dá pra interagir?   -> tudo fica VERDE quando o John tem o que
+#                             entregar, e dourado quando ainda não tem
+#
+# Construído por código, como o aviso e o pensamento. A posição usa a mesma
+# conversão mundo -> tela do balão (get_canvas_transform()), então ele fica
+# "colado" em cima do barco e não sofre com o y-sort do mapa.
+#
+# A HUD não decide nada: a Main manda os números, a posição e o estado.
+
+func _criar_painel_barco() -> void:
+	painel_barco = PanelContainer.new()
+	painel_barco.name = "PainelBarco"  # nome só pra achar no Remote inspector
+	painel_barco.visible = false
+	# IGNORE: o painel é informação, não botão. Sem isso ele engoliria os
+	# cliques dos slots do inventário e dos botões de construção.
+	painel_barco.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	painel_barco.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+
+	estilo_painel_barco = StyleBoxFlat.new()
+	estilo_painel_barco.bg_color = Color(0.06, 0.07, 0.11, 0.86)
+	estilo_painel_barco.set_corner_radius_all(10)
+	estilo_painel_barco.set_border_width_all(3)
+	estilo_painel_barco.set_content_margin_all(10.0)
+	painel_barco.add_theme_stylebox_override("panel", estilo_painel_barco)
+	add_child(painel_barco)
+
+	var coluna := VBoxContainer.new()
+	coluna.alignment = BoxContainer.ALIGNMENT_CENTER
+	coluna.add_theme_constant_override("separation", 6)
+	painel_barco.add_child(coluna)
+
+	# Título: deixa claro que estes números são DAQUELE barco
+	var titulo := Label.new()
+	titulo.text = "Barco quebrado"
+	titulo.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	titulo.add_theme_font_size_override("font_size", 22)
+	titulo.add_theme_color_override("font_color", Color(0.85, 0.87, 0.95))
+	titulo.add_theme_color_override("font_outline_color", Color(0.05, 0.05, 0.09, 0.9))
+	titulo.add_theme_constant_override("outline_size", 6)
+	coluna.add_child(titulo)
+
+	# Linha do material: [ícone madeira] 20   [ícone pedra] 10
+	var linha := HBoxContainer.new()
+	linha.alignment = BoxContainer.ALIGNMENT_CENTER
+	linha.add_theme_constant_override("separation", 22)
+	coluna.add_child(linha)
+
+	label_falta_madeira = _criar_material_do_painel(linha, "madeira")
+	label_falta_pedra = _criar_material_do_painel(linha, "pedra")
+
+	# Instrução: é ela que ensina o jogador a interagir
+	label_instrucao_barco = Label.new()
+	label_instrucao_barco.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label_instrucao_barco.add_theme_font_size_override("font_size", 24)
+	label_instrucao_barco.add_theme_color_override("font_outline_color", Color(0.05, 0.05, 0.09, 0.9))
+	label_instrucao_barco.add_theme_constant_override("outline_size", 6)
+	coluna.add_child(label_instrucao_barco)
+
+
+# Cria um par [ícone][número] dentro do painel e devolve o Label do número
+# (é ele que a Main atualiza a cada entrega). O ícone sai do CatalogoItens:
+# é exatamente a mesma arte que o jogador vê no slot do inventário.
+func _criar_material_do_painel(pai: HBoxContainer, nome_item: String) -> Label:
+	var grupo := HBoxContainer.new()
+	grupo.add_theme_constant_override("separation", 4)
+	pai.add_child(grupo)
+
+	var icone := TextureRect.new()
+	icone.texture = _recortar_arte(CatalogoItens.icone(nome_item))
+	icone.custom_minimum_size = Vector2(TAMANHO_ICONE_BARCO, TAMANHO_ICONE_BARCO)
+	icone.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icone.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icone.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	grupo.add_child(icone)
+
+	var numero := Label.new()
+	numero.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	numero.add_theme_font_size_override("font_size", 36)
+	numero.add_theme_color_override("font_outline_color", Color(0.05, 0.05, 0.09, 0.95))
+	numero.add_theme_constant_override("outline_size", 8)
+	grupo.add_child(numero)
+	return numero
+
+
+# A arte de um item vive num canto de uma folha grande e transparente (a
+# madeira, por exemplo, é 49x30 dentro de um PNG de 128x128). Num ícone
+# pequeno isso viraria um risco ilegível. Aqui a gente recorta SÓ o desenho.
+# O recorte é CALCULADO da imagem (get_used_rect), então continua certo
+# sozinho se você redesenhar a arte.
+func _recortar_arte(textura: Texture2D) -> Texture2D:
+	if textura == null:
+		return null
+	if textura is AtlasTexture:
+		return textura  # já vem recortada do catálogo
+
+	var util: Rect2i = textura.get_image().get_used_rect()
+	if util.size.x <= 0 or util.size.y <= 0:
+		return textura
+
+	var recorte := AtlasTexture.new()
+	recorte.atlas = textura
+	recorte.region = Rect2(util)
+	return recorte
+
+
+# A Main chama isto a cada frame em que o John está no alcance do barco.
+#   falta_madeira / falta_pedra = o que ainda falta pro conserto
+#   pode_entregar = o John tem alguma madeira ou pedra na mochila agora?
+func mostrar_painel_do_barco(falta_madeira: int, falta_pedra: int, pode_entregar: bool, posicao_no_mundo: Vector2) -> void:
+	label_falta_madeira.text = str(falta_madeira)
+	label_falta_pedra.text = str(falta_pedra)
+
+	# Verde = dá pra interagir agora. Dourado = ainda não tem o que entregar
+	# (mesma cor do aviso do sistema, que o jogador já conhece).
+	var destaque: Color = Color(0.45, 1.0, 0.5) if pode_entregar else Color(1.0, 0.85, 0.4)
+	label_falta_madeira.add_theme_color_override("font_color", destaque)
+	label_falta_pedra.add_theme_color_override("font_color", destaque)
+	estilo_painel_barco.border_color = Color(destaque.r, destaque.g, destaque.b, 0.95)
+	label_instrucao_barco.add_theme_color_override("font_color", destaque)
+	label_instrucao_barco.text = ("Aperte E para entregar material" if pode_entregar
+		else "Você não tem madeira nem pedra")
+
+	_posicao_do_barco = posicao_no_mundo
+	painel_barco.visible = true
+	_painel_do_barco_na_tela = true
+	_posicionar_painel_do_barco()
+
+
+func esconder_painel_do_barco() -> void:
+	if painel_barco == null or not painel_barco.visible:
+		return
+	painel_barco.visible = false
+	_painel_do_barco_na_tela = false
+
+
+# Mesma conta do balão de pensamento: a canvas_transform converte a posição
+# do MUNDO pra coordenada de TELA. Daí é só subir o painel pra cima da base
+# do barco e centralizar na horizontal.
+func _posicionar_painel_do_barco() -> void:
+	var na_tela: Vector2 = get_viewport().get_canvas_transform() * _posicao_do_barco
+	var tamanho: Vector2 = painel_barco.get_combined_minimum_size()
+	painel_barco.position = Vector2(
+		na_tela.x - tamanho.x * 0.5,
+		na_tela.y - ALTURA_ACIMA_DO_BARCO - tamanho.y
+	)
+
 
 # Dica que o Player manda quando ele chega perto de um item ou da casa
 func _on_Player_dica_interacao(texto: String) -> void:
@@ -541,4 +714,3 @@ func _on_slot_gui_input(evento: InputEvent, indice: int) -> void:
 # clique agora LARGA em vez de comer. A HUD não conhece a regra: só obedece.
 func destacar_slots_para_largar(ativo: bool) -> void:
 	slots_container.modulate = Color(1.0, 0.5, 0.5) if ativo else Color.WHITE
-

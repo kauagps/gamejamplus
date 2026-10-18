@@ -341,5 +341,4 @@ frames = ExtResource("17_rosa")
 [node name="CartaoHistoria" parent="." instance=ExtResource("18_cartao")]
 
 [node name="Barco" parent="." unique_id=1571091791 instance=ExtResource("4_mxc5g")]
-visible = false
-position = Vector2(1081, 126)
+position = Vector2(500, 100)

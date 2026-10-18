@@ -14,6 +14,11 @@ signal dormir_solicitado
 # do dia_atual.
 signal conversa_solicitada(npc: NPC)
 
+# Idem pro barco: o Player só diz QUE o jogador quer entregar material.
+# Quem desconta o inventário é a Main (dona do fluxo) e quem sabe quanto
+# falta é o próprio Barco.
+signal barco_solicitado(barco: Barco)
+
 # Dica rápida pro HUD ("Aperte E para...") quando algo entra no alcance
 signal dica_interacao(texto: String)
 
@@ -40,6 +45,9 @@ var em_cena: bool = false
 
 # Área da casa (grupo "abrigo") ao alcance do jogador, se houver
 var casa_proxima: Area2D = null
+
+# Barco ao alcance, se houver (é o pai da AreaBarco que entrou na minha área)
+var barco_proximo: Barco = null
 
 # NPC ao alcance, se houver (é o pai da AreaConversa que entrou na minha área)
 var npc_proximo: NPC = null
@@ -130,6 +138,16 @@ func _on_area_interacao_area_entered(area: Area2D) -> void:
 		npc_proximo = area.get_parent() as NPC
 		if npc_proximo != null:
 			dica_interacao.emit("Aperte E para falar com " + npc_proximo.nome_mostrado)
+	elif area.is_in_group("barco"):
+		# Mesma ideia do NPC: a AreaBarco é filha do Barco. Aqui a dica muda
+		# conforme o John tem (ou não) material pra entregar — é o "dá pra
+		# interagir" que o jogador precisa ver antes de apertar E.
+		barco_proximo = area.get_parent() as Barco
+		if barco_proximo != null:
+			if quantos_do_tipo("madeira") > 0 or quantos_do_tipo("pedra") > 0:
+				dica_interacao.emit("Aperte E para entregar material ao barco")
+			else:
+				dica_interacao.emit("O barco precisa de madeira e pedra")
 
 #saiu
 func _on_area_interacao_area_exited(area: Area2D) -> void:
@@ -139,6 +157,8 @@ func _on_area_interacao_area_exited(area: Area2D) -> void:
 		casa_proxima = null
 	elif npc_proximo != null and area.get_parent() == npc_proximo:
 		npc_proximo = null
+	elif barco_proximo != null and area.get_parent() == barco_proximo:
+		barco_proximo = null
 
 # O E é uma tecla só, então ela precisa escolher entre os alvos que estão ao
 # mesmo tempo ao alcance: pegar o item, dormir na casa ou conversar com um NPC.
@@ -153,6 +173,8 @@ func _tentar_interagir() -> void:
 		candidatos.append({ "no": casa_proxima, "dist": global_position.distance_to(casa_proxima.global_position) })
 	if npc_proximo != null:
 		candidatos.append({ "no": npc_proximo, "dist": global_position.distance_to(npc_proximo.global_position) })
+	if barco_proximo != null:
+		candidatos.append({ "no": barco_proximo, "dist": global_position.distance_to(barco_proximo.global_position) })
 
 	if candidatos.is_empty():
 		return
@@ -168,6 +190,9 @@ func _tentar_interagir() -> void:
 	elif alvo == casa_proxima:
 		# Não chama a Main: só avisa que o jogador quer dormir
 		dormir_solicitado.emit()
+	elif alvo == barco_proximo:
+		# Idem: só avisa que ele quer entregar material; a Main desconta
+		barco_solicitado.emit(barco_proximo)
 	else:
 		# Idem: só avisa COM QUEM ele quer falar; a fala do dia é da Main
 		conversa_solicitada.emit(npc_proximo)
@@ -208,6 +233,29 @@ func _on_Animacao_animation_finished() -> void:
 # =====================================================================
 # INVENTÁRIO — usado pela construção (Main) para checar e gastar itens
 # =====================================================================
+# Quantos itens deste tipo estão na mochila? (ex: quantos_do_tipo("madeira"))
+func quantos_do_tipo(nome: String) -> int:
+	var total: int = 0
+	for i in inventario.size():
+		if inventario[i] == nome:
+			total += 1
+	return total
+
+# Tira ATÉ "limite" itens deste tipo da mochila e devolve quantos saíram.
+# É o que o barco usa: o jogador entrega tudo o que tem de madeira/pedra de
+# uma vez, em vez de 1 por aperto (a mochila só tem 3 slots, e o barco pede
+# 30 itens — um por E seriam 30 apertos).
+func retirar_itens_do_tipo(nome: String, limite: int) -> int:
+	var tirados: int = 0
+	for i in inventario.size():
+		if tirados >= limite:
+			break
+		if inventario[i] == nome:
+			inventario[i] = ""
+			inventario_alterado.emit(i, "")
+			tirados += 1
+	return tirados
+
 # Diz se o jogador tem TODOS os itens da lista (contando itens repetidos).
 # Ex: tem_itens(["madeira", "madeira"]) só é true se houver 2 madeiras.
 func tem_itens(necessarios: Array) -> bool:

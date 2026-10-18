@@ -1,14 +1,32 @@
-[gd_scene format=3 uid="uid://jn2f1bfxwf0v"]
+[gd_scene load_steps=5 format=3 uid="uid://jn2f1bfxwf0v"]
 
-[ext_resource type="Texture2D" uid="uid://v5cu1276vqab" path="res://icon.svg" id="1_x0iwk"]
+[ext_resource type="Script" path="res://scripts/Barco.gd" id="1_barco"]
+[ext_resource type="Texture2D" path="res://assets/mapa/barco.tres" id="2_arte"]
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_kclww"]
-size = Vector2(128, 126)
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_casco"]
+size = Vector2(62, 28)
 
-[node name="Barco" type="Area2D" unique_id=1310223950]
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_alcance"]
+size = Vector2(130, 90)
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=420174296]
-shape = SubResource("RectangleShape2D_kclww")
+[node name="Barco" type="StaticBody2D"]
+collision_layer = 1
+collision_mask = 0
+script = ExtResource("1_barco")
 
-[node name="Sprite2D" type="Sprite2D" parent="." unique_id=1629897858]
-texture = ExtResource("1_x0iwk")
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(1, -14)
+shape = SubResource("RectangleShape2D_casco")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+offset = Vector2(0, -10)
+texture = ExtResource("2_arte")
+
+[node name="AreaBarco" type="Area2D" parent="." groups=["barco"]]
+collision_layer = 1
+collision_mask = 0
+monitoring = false
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="AreaBarco"]
+position = Vector2(0, -18)
+shape = SubResource("RectangleShape2D_alcance")
