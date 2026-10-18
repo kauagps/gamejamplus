@@ -1,0 +1,73 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/GameOver.gd" id="1_gameover"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_gameover"]
+content_margin_left = 60.0
+content_margin_top = 40.0
+content_margin_right = 60.0
+content_margin_bottom = 34.0
+bg_color = Color(0.05, 0.03, 0.04, 0.95)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.62, 0.18, 0.16, 0.95)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[node name="GameOver" type="CanvasLayer"]
+layer = 120
+script = ExtResource("1_gameover")
+
+[node name="Caixa" type="PanelContainer" parent="."]
+layout_mode = 3
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -420.0
+offset_top = -160.0
+offset_right = 420.0
+offset_bottom = 160.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_gameover")
+
+[node name="Coluna" type="VBoxContainer" parent="Caixa"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 14
+
+[node name="Titulo" type="Label" parent="Caixa/Coluna"]
+layout_mode = 2
+text = "GAME OVER"
+horizontal_alignment = 1
+theme_override_colors/font_color = Color(0.86, 0.29, 0.26, 1)
+theme_override_colors/font_outline_color = Color(0.02, 0.02, 0.05, 0.9)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 76
+
+[node name="Texto" type="Label" parent="Caixa/Coluna"]
+layout_mode = 2
+size_flags_vertical = 3
+text = "A cabeça do John não aguentou.
+Ele ficou para sempre naquela ilha."
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3
+theme_override_colors/font_color = Color(0.94, 0.96, 1, 1)
+theme_override_colors/font_outline_color = Color(0.02, 0.02, 0.05, 0.9)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 30
+
+[node name="Aviso" type="Label" parent="Caixa/Coluna"]
+layout_mode = 2
+text = "▼  aperte E para recomeçar"
+horizontal_alignment = 1
+theme_override_colors/font_color = Color(1, 0.85, 0.45, 1)
+theme_override_font_sizes/font_size = 22

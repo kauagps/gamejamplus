@@ -28,6 +28,24 @@ const FOME_POR_DIA: float = 100.0
 # Quanto de sanidade cai por dia quando a fome está zerada
 const SANIDADE_POR_DIA_SEM_COMIDA: float = 50.0
 
+# --- SANIDADE x FOME (o eixo da mecânica de sanidade) ---
+# A sanidade não é só uma barra que escorre de noite: ela anda junto com a
+# barriga. Note que o LIMITE (60% de fome) mora no Status.gd, junto das
+# regras dos medidores — aqui ficam só as quantidades por dia.
+const SANIDADE_POR_DIA_COMENDO_BEM: float = 50.0   # fome acima de 60%
+const SANIDADE_POR_DIA_FOME_BAIXA: float = 25.0    # fome entre 1 e 60%
+
+# Quanto dormir devolve de sanidade. NÃO é mais a barra cheia: dormir
+# alivia, mas quem mantém a cabeça sã é COMER.
+const SANIDADE_GANHA_AO_DORMIR: float = 40.0
+
+# --- EFEITO DA SANIDADE NA TELA ---
+# Abaixo desta fração da barra a tela começa a "adoecer": as bordas fecham,
+# a imagem ondula e a câmera trema — e tudo piora até o game over.
+# 0.6 é o MESMO 60% da fome, de propósito: a tela começa a escurecer
+# exatamente quando a cabeça para de se recuperar sozinha.
+const LIMITE_SANIDADE_TELA: float = 0.6
+
 # Quanto de fome dormir custa (1/4 do consumo de um dia inteiro)
 const FOME_PERDIDA_AO_DORMIR: float = FOME_POR_DIA * 0.25
 
@@ -108,6 +126,11 @@ const RECEITAS: Dictionary = {
 @onready var node_construcoes: Node2D = $Node  # nó com y_sort_enabled
 @onready var jogador: Node2D = get_tree().get_first_node_in_group("jogador")
 
+# O efeito da sanidade na tela (bordas, ondulação e tremor) e a tela final.
+# Os dois são irmãos dela na Main.tscn, como a vinheta e o cartão.
+@onready var tela_doente: SanidadeVisual = $SanidadeVisual
+@onready var tela_final: GameOver = $GameOver
+
 var e_noite: bool = false
 var dia_atual: int = 1  # o dia atual do jogo (começa no DIA 1)
 
@@ -138,6 +161,12 @@ var tempo_do_recado_de_largar: float = 0.0  # ver _process
 var dialogo_ativo: bool = false   # trava: só uma conversa por vez
 var _frame_do_dialogo: int = -1   # ver _atualizar_dialogo (guarda o E do mesmo frame)
 
+# --- Fim de jogo (a sanidade zerou) ---
+# Vira true no game over. Serve pra duas coisas: o game over não dispara
+# duas vezes, e o efeito de sanidade na tela se desliga (a vinheta já está
+# fechando — a câmera não precisa tremer no escuro).
+var acabou_o_jogo: bool = false
+
 func _ready() -> void:
 	# O timer conta SÓ o dia. A noite não tem relógio: ela acaba quando o
 	# jogador dorme (ver _comecar_a_noite).
@@ -167,14 +196,15 @@ func _ready() -> void:
 	# Clique num slot do inventário = usar o item (comer)
 	hud.slot_usado.connect(_on_slot_usado)
 
-	# --- Taxas de desgaste ---
-	# Um "dia" do jogo agora é SÓ a fase clara (o wait_time do timer): a
-	# noite não tem duração, ela acaba quando o jogador dorme. Daí saem as
-	# taxas POR SEGUNDO que o Status aplica a cada frame.
-	Status.definir_taxas_de_desgaste(
-		_por_segundo(FOME_POR_DIA),
-		_por_segundo(SANIDADE_POR_DIA_SEM_COMIDA)
-	)
+	# Fim de jogo: quem avisa é o Status (a barra encostou no zero); quem
+	# decide o que fazer com isso é a Main (call down, signal up).
+	Status.sanidade_zerada.connect(game_over)
+
+	# --- As taxas do mundo ---
+	# Um "dia" do jogo é SÓ a fase clara (o wait_time do timer): a noite não
+	# tem duração, ela acaba quando o jogador dorme. Daí saem as taxas POR
+	# SEGUNDO que o Status aplica a cada frame (ver _ligar_o_mundo).
+	_ligar_o_mundo()
 
 	# --- Abertura: o despertar do dia 1 ---
 	_iniciar_a_abertura()
@@ -195,7 +225,7 @@ func _iniciar_a_abertura() -> void:
 
 	# 3) O mundo também espera. Ele acordou agora: ninguém perde fome
 	#    enquanto ouve a própria cabeça. (As taxas voltam no fim da cena.)
-	Status.definir_taxas_de_desgaste(0.0, 0.0)
+	_parar_o_mundo()
 
 	# 4) Uns instantes de preto, e a pálpebra abre BEM devagar
 	await get_tree().create_timer(0.6).timeout
@@ -213,10 +243,7 @@ func _iniciar_a_abertura() -> void:
 	if jogador:
 		jogador.em_cena = false
 
-	Status.definir_taxas_de_desgaste(
-		_por_segundo(FOME_POR_DIA),
-		_por_segundo(SANIDADE_POR_DIA_SEM_COMIDA)
-	)
+	_ligar_o_mundo()
 
 	# E o relógio do dia 1 começa a andar só agora
 	timer.start()
@@ -226,6 +253,7 @@ func _process(delta: float) -> void:
 	atualizar_luz_do_dia(delta)
 	atualizar_pensamentos(delta)
 	_atualizar_painel_do_barco()
+	_atualizar_sanidade_visual()
 
 	# --- Conversa com um NPC: durante ela o E é da fala, não do mundo ---
 	if dialogo_ativo:
@@ -584,6 +612,34 @@ func _por_segundo(valor_por_dia: float) -> float:
 		return 0.0
 	return valor_por_dia / timer.wait_time
 
+
+# =====================================================================
+# LIGAR / PARAR O MUNDO (todas as taxas do Status num lugar só)
+# =====================================================================
+# Isto existe por um motivo chato de descobrir do jeito difícil: cada taxa
+# nova que nasce no Status precisa ser zerada em TODA cena que pausa o
+# mundo (dormir, abertura, game over) — e esquecer uma delas faz ela vazar
+# (ex: a sanidade subindo enquanto o jogador lê o cartão da madrugada).
+# Com estas duas funções, ligar e desligar o mundo é um lugar só.
+func _parar_o_mundo() -> void:
+	Status.definir_taxas_de_desgaste(0.0, 0.0)
+	Status.definir_taxas_de_sanidade_por_fome(0.0, 0.0)
+	Status.definir_taxa_sanidade_noturna(0.0)
+
+
+func _ligar_o_mundo() -> void:
+	Status.definir_taxas_de_desgaste(
+		_por_segundo(FOME_POR_DIA),
+		_por_segundo(SANIDADE_POR_DIA_SEM_COMIDA)
+	)
+	Status.definir_taxas_de_sanidade_por_fome(
+		_por_segundo(SANIDADE_POR_DIA_COMENDO_BEM),
+		_por_segundo(SANIDADE_POR_DIA_FOME_BAIXA)
+	)
+	# A taxa da NOITE não entra aqui de propósito: ela nasce quando o sol se
+	# põe (ver _comecar_a_noite) e morre quando o jogador dorme. De dia ela
+	# é zero por natureza.
+
 # =====================================================================
 # CICLO DIA / NOITE (a noite é um PRAZO: ela não passa sozinha)
 # =====================================================================
@@ -629,6 +685,63 @@ func atualizar_pensamentos(delta: float) -> void:
 			hud.mostrar_pensamento(PENSAMENTOS_DO_DIA[i]["texto"])
 
 # =====================================================================
+# SANIDADE NA TELA (o mundo "adoece" junto com a cabeça)
+# =====================================================================
+# A conta da severidade mora AQUI (e não no nó que desenha) por dois motivos:
+#   1) só a Main sabe quando o mundo está parado numa cena (dormir, abertura)
+#   2) a régua é a mesma da mecânica: a tela começa a fechar em
+#      LIMITE_SANIDADE_TELA (60%) e piora até a sanidade zerar.
+# A HUD e o painel do barco ficam de fora: no meio de um surto o jogador
+# ainda precisa conseguir ler a própria barra de sanidade.
+func _atualizar_sanidade_visual() -> void:
+	if jogador == null:
+		return
+
+	var severidade: float = 0.0
+	if not jogador.em_cena and not acabou_o_jogo:
+		var limite: float = Status.sanidade_maximo * LIMITE_SANIDADE_TELA
+		if limite > 0.0 and Status.sanidade < limite:
+			severidade = clampf(1.0 - Status.sanidade / limite, 0.0, 1.0)
+
+	tela_doente.definir_severidade(severidade)
+
+
+# =====================================================================
+# GAME OVER (a sanidade zerou)
+# =====================================================================
+# A ordem: o mundo para, o jogador sai do controle, a tela fecha (a MESMA
+# vinheta do dormir) e a tela final aparece por cima do preto. Quando o
+# jogador aperta E, o jogo recomeça do zero.
+#
+# O recomeço é um RELOAD da cena: a Main.tscn inteira nasce de novo, com o
+# dia 1, a abertura e tudo. A única coisa que sobrevive a isso é o Autoload
+# Status — por isso ele é reiniciado na mão antes (ver Status.reiniciar).
+#
+# Mais pra frente isto vira um ir_para_o_menu(): quando a cena do menu
+# existir, é só trocar o reload por um change_scene_to_file pra ela.
+func game_over() -> void:
+	if acabou_o_jogo:
+		return
+	acabou_o_jogo = true
+
+	# O mundo para de correr (senão a fome continuaria caindo no escuro)
+	_parar_o_mundo()
+	timer.stop()
+
+	# E o jogador sai do controle: não anda mais, o E não interage
+	if jogador:
+		jogador.em_cena = true
+
+	# Escurece como no dormir, e o aviso final aparece sobre o preto
+	await vinheta.fechar()
+	await tela_final.mostrar()
+
+	# Recomeça do zero (ver o comentário acima sobre o Autoload)
+	Status.reiniciar()
+	get_tree().reload_current_scene()
+
+
+# =====================================================================
 # DORMIR (a vinheta + o sono)
 # =====================================================================
 func dormir() -> void:
@@ -651,8 +764,7 @@ func dormir() -> void:
 	# O sono também PARA o desgaste do mundo: nada de fome/sanidade caindo
 	# enquanto o jogador lê o cartão da madrugada (o gasto do sono continua
 	# sendo cobrado explicitamente, em FOME_PERDIDA_AO_DORMIR, logo abaixo).
-	Status.definir_taxa_sanidade_noturna(0.0)
-	Status.definir_taxas_de_desgaste(0.0, 0.0)
+	_parar_o_mundo()
 
 	# 1) A pálpebra fecha: a tela escurece por uma vinheta
 	await vinheta.fechar()
@@ -672,9 +784,9 @@ func dormir() -> void:
 
 	# (a sanidade da noite já parou lá em cima, junto com o desgaste)
 
-	# Acorda descansado: sanidade cheia
-	# (mudar_sanidade SOMA e faz clamp, então passar o máximo devolve tudo)
-	Status.mudar_sanidade(Status.sanidade_maximo)
+	# Acorda com a cabeça melhor — mas NÃO inteira: dormir alivia, quem
+	# mantém a cabeça sã é comer (é o eixo da mecânica de sanidade x fome).
+	Status.mudar_sanidade(SANIDADE_GANHA_AO_DORMIR)
 
 	# ...mas dormir também gasta energia: custa um pedaço da fome
 	Status.mudar_fome(-FOME_PERDIDA_AO_DORMIR)
@@ -690,10 +802,7 @@ func dormir() -> void:
 		jogador.em_cena = false
 
 	# Amanheceu: o dia novo volta a corroer o jogador
-	Status.definir_taxas_de_desgaste(
-		_por_segundo(FOME_POR_DIA),
-		_por_segundo(SANIDADE_POR_DIA_SEM_COMIDA)
-	)
+	_ligar_o_mundo()
 
 	hud.mostrar_pensamento("Bom dia... o que será que me espera hoje?")
 

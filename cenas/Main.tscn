@@ -23,6 +23,8 @@
 [ext_resource type="SpriteFrames" path="res://assets/Player/rosa.tres" id="17_rosa"]
 [ext_resource type="PackedScene" path="res://cenas/CartaoHistoria.tscn" id="18_cartao"]
 [ext_resource type="PackedScene" path="res://cenas/Arbustro.tscn" id="19_arbusto"]
+[ext_resource type="PackedScene" path="res://cenas/SanidadeVisual.tscn" id="20_sanidade"]
+[ext_resource type="PackedScene" path="res://cenas/GameOver.tscn" id="21_gameover"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_o8b3u"]
 texture = ExtResource("2_adoo1")
@@ -334,6 +336,8 @@ chave = "rosa"
 nome_mostrado = "Rosa"
 frames = ExtResource("17_rosa")
 
+[node name="SanidadeVisual" parent="." instance=ExtResource("20_sanidade")]
+
 [node name="HUD" parent="." unique_id=412191067 instance=ExtResource("3_yihtt")]
 
 [node name="Vinheta" parent="." instance=ExtResource("13_vinheta")]
@@ -342,3 +346,5 @@ frames = ExtResource("17_rosa")
 
 [node name="Barco" parent="." unique_id=1571091791 instance=ExtResource("4_mxc5g")]
 position = Vector2(500, 100)
+
+[node name="GameOver" parent="." instance=ExtResource("21_gameover")]

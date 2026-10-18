@@ -77,7 +77,12 @@ func _aplicar(progresso: float) -> void:
 	# O raio do gradiente radial É a distância entre fill_from e fill_to,
 	# então mexer no fill_to é literalmente mexer no tamanho do buraco.
 	var centro: Vector2 = Vector2(textura.width, textura.height) * 0.5
-	var raio: float = lerpf(raio_aberto, 0.0, progresso)
+	# O raio NUNCA chega a zero: com fill_from == fill_to o gradiente
+	# degenera (divisão por zero) e a textura vira 100% TRANSPARENTE — a
+	# tela ficava limpa justo quando devia estar toda preta (dava pra ver o
+	# mundo atrás do cartão da madrugada e do GAME OVER). Com 1 pixel, a
+	# imagem inteira cai no fim do gradiente: preto cheio, como esperado.
+	var raio: float = maxf(lerpf(raio_aberto, 0.0, progresso), 1.0)
 
 	textura.fill_from = centro
 	textura.fill_to = centro - Vector2(0.0, raio)
