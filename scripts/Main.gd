@@ -41,17 +41,23 @@ func _ready() -> void:
 	hud.construcao_solicitada.connect(_on_construcao_solicitada)
 
 func _process(_delta: float) -> void:
-	if fantasma == null:
+	# --- Modo de construção: a prévia (fantasma) segue o jogador ---
+	if fantasma != null:
+		# O fantasma fica sempre um pouco à frente do jogador
+		fantasma.global_position = jogador.global_position + jogador.ultima_direcao * DISTANCIA_CONSTRUCAO
+
+		# E confirma, Esc cancela
+		if Input.is_action_just_pressed("interagir"):
+			_confirmar_construcao()
+		elif Input.is_action_just_pressed("ui_cancel"):
+			_cancelar_construcao()
 		return
 
-	# O fantasma fica sempre um pouco à frente do jogador
-	fantasma.global_position = jogador.global_position + jogador.ultima_direcao * DISTANCIA_CONSTRUCAO
-
-	# E confirma, Esc cancela
-	if Input.is_action_just_pressed("interagir"):
-		_confirmar_construcao()
-	elif Input.is_action_just_pressed("ui_cancel"):
-		_cancelar_construcao()
+	# --- TEMPORÁRIO: tecla de debug pra testar o dormir ---
+	# Quando o objeto real existir (cama/fogueira), esta chamada sai daqui:
+	# quem vai chamar dormir() é a interação com ele.
+	if Input.is_action_just_pressed("dormir"):
+		dormir()
 
 # =====================================================================
 # CONSTRUÇÃO
@@ -126,10 +132,22 @@ func _alternar_dia_noite() -> void:
 	timer.start()
 	
 func dormir() -> void:
+	# Só dá pra dormir de noite
+	if not e_noite:
+		hud.mostrar_aviso("Você só pode dormir à noite!")
+		return
+
+	# Amanhece na hora. Como o timer é reiniciado, o próximo anoitecer
+	# só vem um "dia" (timeout) inteiro depois.
 	e_noite = false
 	modulacao.color = Color(1, 1, 1)
 	timer.stop()
 	timer.start()
-	# Dormir também avança para o dia seguinte
+
+	# Dormir avança para o dia seguinte
 	dia_atual += 1
 	hud.atualizar_contador_dias(dia_atual)
+
+	# Acorda descansado: sanidade cheia
+	# (mudar_sanidade SOMA e faz clamp, então passar o máximo devolve tudo)
+	Status.mudar_sanidade(Status.sanidade_maximo)
