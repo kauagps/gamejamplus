@@ -1,0 +1,90 @@
+[gd_resource type="SpriteFrames" format=3]
+
+[ext_resource type="Texture2D" path="res://assets/mapa/barcosaindo-01.png" id="1_sn2nm"]
+[ext_resource type="Texture2D" path="res://assets/mapa/barcosaindo-02.png" id="2_smueb"]
+[ext_resource type="Texture2D" path="res://assets/mapa/barcosaindo-03.png" id="3_4nt5t"]
+[ext_resource type="Texture2D" path="res://assets/mapa/barcosaindo-04.png" id="4_o1se8"]
+[ext_resource type="Texture2D" path="res://assets/mapa/barcosaindo-05.png" id="5_qghg5"]
+[ext_resource type="Texture2D" path="res://assets/mapa/barcosaindo-06.png" id="6_8d1d4"]
+[ext_resource type="Texture2D" path="res://assets/mapa/barcosaindo-07.png" id="7_ivyfv"]
+[ext_resource type="Texture2D" path="res://assets/mapa/barcosaindo-08.png" id="8_tdfq8"]
+[ext_resource type="Texture2D" path="res://assets/mapa/barcosaindo-09.png" id="9_80vcc"]
+[ext_resource type="Texture2D" path="res://assets/mapa/barcosaindo-10.png" id="10_lg41m"]
+[ext_resource type="Texture2D" path="res://assets/mapa/barcosaindo-11.png" id="11_jb3tt"]
+[ext_resource type="Texture2D" path="res://assets/mapa/barcosaindo-12.png" id="12_kdxgq"]
+[ext_resource type="Texture2D" path="res://assets/mapa/barcosaindo-13.png" id="13_d78ku"]
+[ext_resource type="Texture2D" path="res://assets/mapa/barcosaindo-14.png" id="14_0qqat"]
+[ext_resource type="Texture2D" path="res://assets/mapa/barcosaindo-15.png" id="15_xlpos"]
+[ext_resource type="Texture2D" path="res://assets/mapa/barcosaindo-16.png" id="16_dwmvd"]
+[ext_resource type="Texture2D" path="res://assets/mapa/barcosaindo-17.png" id="17_6ofsl"]
+[ext_resource type="Texture2D" path="res://assets/mapa/barcosaindo-18.png" id="18_gslt0"]
+[ext_resource type="Texture2D" path="res://assets/mapa/barcosaindo-19.png" id="19_2rabu"]
+[ext_resource type="Texture2D" path="res://assets/mapa/barcosaindo-20.png" id="20_jwvwx"]
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("1_sn2nm")
+}, {
+"duration": 1.0,
+"texture": ExtResource("2_smueb")
+}, {
+"duration": 1.0,
+"texture": ExtResource("3_4nt5t")
+}, {
+"duration": 1.0,
+"texture": ExtResource("4_o1se8")
+}, {
+"duration": 1.0,
+"texture": ExtResource("5_qghg5")
+}, {
+"duration": 1.0,
+"texture": ExtResource("6_8d1d4")
+}, {
+"duration": 1.0,
+"texture": ExtResource("7_ivyfv")
+}, {
+"duration": 1.0,
+"texture": ExtResource("8_tdfq8")
+}, {
+"duration": 1.0,
+"texture": ExtResource("9_80vcc")
+}, {
+"duration": 1.0,
+"texture": ExtResource("10_lg41m")
+}, {
+"duration": 1.0,
+"texture": ExtResource("11_jb3tt")
+}, {
+"duration": 1.0,
+"texture": ExtResource("12_kdxgq")
+}, {
+"duration": 1.0,
+"texture": ExtResource("13_d78ku")
+}, {
+"duration": 1.0,
+"texture": ExtResource("14_0qqat")
+}, {
+"duration": 1.0,
+"texture": ExtResource("15_xlpos")
+}, {
+"duration": 1.0,
+"texture": ExtResource("16_dwmvd")
+}, {
+"duration": 1.0,
+"texture": ExtResource("17_6ofsl")
+}, {
+"duration": 1.0,
+"texture": ExtResource("18_gslt0")
+}, {
+"duration": 1.0,
+"texture": ExtResource("19_2rabu")
+}, {
+"duration": 1.0,
+"texture": ExtResource("20_jwvwx")
+}],
+"loop": 0,
+"name": &"saindo",
+"speed": 2.0
+}]

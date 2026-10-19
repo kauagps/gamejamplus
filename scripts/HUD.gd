@@ -99,6 +99,7 @@ var estilo_painel_barco: StyleBoxFlat
 var label_falta_madeira: Label
 var label_falta_pedra: Label
 var label_instrucao_barco: Label
+var titulo_barco: Label  # "Barco quebrado" / "Barco consertado" (ver mostrar_)
 var _posicao_do_barco: Vector2 = Vector2.ZERO
 var _painel_do_barco_na_tela: bool = false
 
@@ -493,15 +494,16 @@ func _criar_painel_barco() -> void:
 	coluna.add_theme_constant_override("separation", 6)
 	painel_barco.add_child(coluna)
 
-	# Título: deixa claro que estes números são DAQUELE barco
-	var titulo := Label.new()
-	titulo.text = "Barco quebrado"
-	titulo.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	titulo.add_theme_font_size_override("font_size", 22)
-	titulo.add_theme_color_override("font_color", Color(0.85, 0.87, 0.95))
-	titulo.add_theme_color_override("font_outline_color", Color(0.05, 0.05, 0.09, 0.9))
-	titulo.add_theme_constant_override("outline_size", 6)
-	coluna.add_child(titulo)
+	# Título: deixa claro que estes números são DAQUELE barco. Ele muda de
+	# texto junto com o estado (quebrado / consertado) no mostrar_ abaixo.
+	titulo_barco = Label.new()
+	titulo_barco.text = "Barco quebrado"
+	titulo_barco.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	titulo_barco.add_theme_font_size_override("font_size", 22)
+	titulo_barco.add_theme_color_override("font_color", Color(0.85, 0.87, 0.95))
+	titulo_barco.add_theme_color_override("font_outline_color", Color(0.05, 0.05, 0.09, 0.9))
+	titulo_barco.add_theme_constant_override("outline_size", 6)
+	coluna.add_child(titulo_barco)
 
 	# Linha do material: [ícone madeira] 20   [ícone pedra] 10
 	var linha := HBoxContainer.new()
@@ -570,19 +572,28 @@ func _recortar_arte(textura: Texture2D) -> Texture2D:
 # A Main chama isto a cada frame em que o John está no alcance do barco.
 #   falta_madeira / falta_pedra = o que ainda falta pro conserto
 #   pode_entregar = o John tem alguma madeira ou pedra na mochila agora?
-func mostrar_painel_do_barco(falta_madeira: int, falta_pedra: int, pode_entregar: bool, posicao_no_mundo: Vector2) -> void:
+#   pronto = o barco JÁ está consertado: o E nele não entrega, ZARPA
+func mostrar_painel_do_barco(falta_madeira: int, falta_pedra: int, pode_entregar: bool, posicao_no_mundo: Vector2, pronto: bool = false) -> void:
 	label_falta_madeira.text = str(falta_madeira)
 	label_falta_pedra.text = str(falta_pedra)
 
 	# Verde = dá pra interagir agora. Dourado = ainda não tem o que entregar
 	# (mesma cor do aviso do sistema, que o jogador já conhece).
-	var destaque: Color = Color(0.45, 1.0, 0.5) if pode_entregar else Color(1.0, 0.85, 0.4)
+	var destaque: Color = Color(0.45, 1.0, 0.5) if (pode_entregar or pronto) else Color(1.0, 0.85, 0.4)
 	label_falta_madeira.add_theme_color_override("font_color", destaque)
 	label_falta_pedra.add_theme_color_override("font_color", destaque)
 	estilo_painel_barco.border_color = Color(destaque.r, destaque.g, destaque.b, 0.95)
 	label_instrucao_barco.add_theme_color_override("font_color", destaque)
-	label_instrucao_barco.text = ("Aperte E para entregar material" if pode_entregar
-		else "Você não tem madeira nem pedra")
+
+	# O recado, do mais forte pro mais fraco: barco pronto > tem material >
+	# mochila sem nada. O título muda junto (quebrado / consertado).
+	if pronto:
+		titulo_barco.text = "Barco consertado"
+		label_instrucao_barco.text = "Aperte E para zarpar da ilha"
+	else:
+		titulo_barco.text = "Barco quebrado"
+		label_instrucao_barco.text = ("Aperte E para entregar material" if pode_entregar
+			else "Você não tem madeira nem pedra")
 
 	_posicao_do_barco = posicao_no_mundo
 	painel_barco.visible = true

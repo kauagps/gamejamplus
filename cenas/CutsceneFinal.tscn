@@ -1,0 +1,38 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/CutsceneFinal.gd" id="1_cutf"]
+[ext_resource type="SpriteFrames" path="res://assets/mapa/barcosaindo.tres" id="2_quadros"]
+[ext_resource type="AudioStream" path="res://assets/audios/OndasOceano.mp3" id="3_som"]
+
+[node name="CutsceneFinal" type="CanvasLayer"]
+visible = false
+layer = 107
+script = ExtResource("1_cutf")
+
+[node name="Fundo" type="ColorRect" parent="."]
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.356863, 0.431373, 0.882353, 1)
+
+[node name="Quadros" type="AnimatedSprite2D" parent="."]
+visible = false
+position = Vector2(960, 540)
+sprite_frames = ExtResource("2_quadros")
+animation = &"saindo"
+
+[node name="Preto" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0)
+
+[node name="Som" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("3_som")
+bus = &"Ambiente"

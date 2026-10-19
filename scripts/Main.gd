@@ -135,6 +135,14 @@ const HISTORIA_DA_MADRUGADA: Dictionary = {
 # mudar ele move a cena pra outra noite.
 const DIA_DO_TERROR: int = 2
 
+# --- O FIM DA DEMO (o cartão depois da travessia) ---
+# Quando o barco fica pronto e o jogador zarpa, o jogo roda a cutscene do
+# barco saindo (cenas/CutsceneFinal.tscn) e depois este cartão — o MESMO
+# CartaoHistoria da madrugada, por cima do preto que a cutscene deixou. O
+# jogo só volta pro menu inicial quando o jogador apertar E. É o último
+# texto que a demo diz: mexa à vontade.
+const FIM_DA_DEMO: String = "FIM DA DEMO\n\nObrigado por jogar Fique Conosco."
+
 # Receitas: o que cada construção custa.
 # "custo" usa os MESMOS nomes que os itens do inventário.
 const RECEITAS: Dictionary = {
@@ -157,6 +165,7 @@ const RECEITAS: Dictionary = {
 @onready var cartao: CartaoHistoria = $CartaoHistoria
 @onready var cutscene: Cutscene = $Cutscene
 @onready var cutscene_terror: CutsceneTerror = $CutsceneTerror
+@onready var cutscene_final: CutsceneFinal = $CutsceneFinal
 @onready var pausa: Pausa = $Pausa
 @onready var node_construcoes: Node2D = $Node  # nó com y_sort_enabled
 @onready var jogador: Node2D = get_tree().get_first_node_in_group("jogador")
@@ -221,6 +230,11 @@ var _frame_do_dialogo: int = -1   # ver _atualizar_dialogo (guarda o E do mesmo 
 # duas vezes, e o efeito de sanidade na tela se desliga (a vinheta já está
 # fechando — a câmera não precisa tremer no escuro).
 var acabou_o_jogo: bool = false
+
+# --- O final da demo (o barco ficou pronto e o jogador zarpa) ---
+# Trava: um E no barco pronto dispara a cutscene UMA vez. Sem isto, um
+# segundo E enquanto a cena abre zarparia de novo.
+var indo_para_o_final: bool = false
 
 func _ready() -> void:
 	# O timer conta SÓ o dia. A noite não tem relógio: ela acaba quando o
@@ -727,7 +741,9 @@ func _on_barco_solicitado(barco: Barco) -> void:
 		return
 
 	if barco.esta_pronto():
-		hud.mostrar_aviso("O barco já está consertado")
+		# O barco pronto é a PORTA DO FINAL: o E aqui zarpa a ilha
+		# (a travessia + o cartão do FIM + o menu inicial).
+		_iniciar_o_final()
 		return
 
 	# Entrega TUDO o que couber do que o jogador tem, de uma vez: a mochila
@@ -741,6 +757,13 @@ func _on_barco_solicitado(barco: Barco) -> void:
 		return
 
 	barco.receber(madeiras, pedras)
+
+	# Esta entrega fechou o barco? Então o recado não são os números
+	# entregues: é o convite pra zarpar (o painel em cima do barco repete
+	# ele enquanto o John estiver perto).
+	if barco.esta_pronto():
+		hud.mostrar_aviso("O barco está pronto! Aperte E para zarpar.")
+		return
 
 	var partes: Array[String] = []
 	if madeiras > 0:
@@ -768,12 +791,53 @@ func _atualizar_painel_do_barco() -> void:
 		or jogador.quantos_do_tipo("pedra") > 0
 	)
 
+	var pronto: bool = barco.esta_pronto()
+
 	hud.mostrar_painel_do_barco(
 		barco.falta_madeira(),
 		barco.falta_pedra(),
-		tem_material and not barco.esta_pronto(),
-		barco.global_position
+		tem_material and not pronto,
+		barco.global_position,
+		pronto
 	)
+
+# =====================================================================
+# O FINAL DA DEMO (o barco pronto -> a travessia -> o FIM -> o menu)
+# =====================================================================
+# Quem chama: o E num barco JÁ consertado (ver _on_barco_solicitado). A
+# ordem é a do fecho:
+#
+#   1) o mundo para e fica mudo, e o John sai do controle — é uma CENA,
+#      igual à abertura e ao dormir (ninguém perde fome navegando);
+#   2) a CutsceneFinal roda inteira (a Main espera: await) e entrega a
+#      tela PRETA no fim — é sobre esse preto que o cartão aparece;
+#   3) o cartão do FIM (o mesmo CartaoHistoria da madrugada) espera o E;
+#   4) e o ir_para_o_menu() fecha a demo: Status zerado e menu no ar.
+func _iniciar_o_final() -> void:
+	if indo_para_o_final:
+		return  # dois E no mesmo frame não zarparam duas vezes
+	indo_para_o_final = true
+
+	# O relógio do dia não corre mais: depois daqui não existe "amanhã"
+	timer.stop()
+
+	# O mundo para de corroer o John e fica mudo. Quem manda no ouvido agora
+	# é o MAR (o som da cutscene vive no bus "Ambiente", que o calar() não
+	# abafa — o calar() é do som do MUNDO: vento, insetos, passos).
+	_parar_o_mundo()
+	audio.calar()
+
+	if jogador:
+		jogador.em_cena = true
+
+	# 1) A travessia. Quem manda na duração é a própria cena (os 20 quadros)
+	await cutscene_final.mostrar()
+
+	# 2) O cartão do FIM, por cima do preto que ela deixou
+	await cartao.mostrar(FIM_DA_DEMO)
+
+	# 3) E a demo fecha voltando pro menu inicial
+	ir_para_o_menu()
 
 # =====================================================================
 # LUZ DO DIA (amanhecer / anoitecer procedural)
