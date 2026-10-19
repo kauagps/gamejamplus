@@ -1,0 +1,39 @@
+[gd_resource type="SpriteFrames" load_steps=6 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/ui/Titulo-Sheet.png" id="1_titulo"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_t1"]
+atlas = ExtResource("1_titulo")
+region = Rect2(0, 0, 527, 102)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_t2"]
+atlas = ExtResource("1_titulo")
+region = Rect2(527, 0, 527, 102)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_t3"]
+atlas = ExtResource("1_titulo")
+region = Rect2(1054, 0, 527, 102)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_t4"]
+atlas = ExtResource("1_titulo")
+region = Rect2(1581, 0, 527, 102)
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_t1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_t2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_t3")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_t4")
+}],
+"loop": false,
+"name": &"escorrendo",
+"speed": 1.5
+}]

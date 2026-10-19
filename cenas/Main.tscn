@@ -29,6 +29,7 @@
 [ext_resource type="PackedScene" path="res://cenas/Audio.tscn" id="23_audio"]
 [ext_resource type="PackedScene" path="res://cenas/Cutscene.tscn" id="24_cutscene"]
 [ext_resource type="PackedScene" path="res://cenas/CutsceneTerror.tscn" id="25_terror"]
+[ext_resource type="PackedScene" path="res://cenas/Pausa.tscn" id="26_pausa"]
 
 [sub_resource type="Gradient" id="Gradient_luz"]
 offsets = PackedFloat32Array(0, 0.22, 0.38, 0.46, 0.52, 0.85, 1)
@@ -251,7 +252,7 @@ sources/5 = SubResource("TileSetAtlasSource_und73")
 script = ExtResource("1_8tf0g")
 
 [node name="TimerDiaNoite" type="Timer" parent="." unique_id=2093071589]
-wait_time = 165.0
+wait_time = 160.0
 one_shot = true
 
 [node name="LuzGlobal" type="CanvasModulate" parent="." unique_id=187156222]
@@ -501,6 +502,8 @@ position = Vector2(498, 1243)
 
 [node name="GameOver" parent="." unique_id=651478357 instance=ExtResource("21_gameover")]
 
-[node name="Cutscene" parent="." instance=ExtResource("24_cutscene")]
+[node name="Cutscene" parent="." unique_id=1798892527 instance=ExtResource("24_cutscene")]
 
-[node name="CutsceneTerror" parent="." instance=ExtResource("25_terror")]
+[node name="CutsceneTerror" parent="." unique_id=474980241 instance=ExtResource("25_terror")]
+
+[node name="Pausa" parent="." unique_id=1308462795 instance=ExtResource("26_pausa")]

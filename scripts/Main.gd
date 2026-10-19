@@ -157,6 +157,7 @@ const RECEITAS: Dictionary = {
 @onready var cartao: CartaoHistoria = $CartaoHistoria
 @onready var cutscene: Cutscene = $Cutscene
 @onready var cutscene_terror: CutsceneTerror = $CutsceneTerror
+@onready var pausa: Pausa = $Pausa
 @onready var node_construcoes: Node2D = $Node  # nó com y_sort_enabled
 @onready var jogador: Node2D = get_tree().get_first_node_in_group("jogador")
 
@@ -263,6 +264,11 @@ func _ready() -> void:
 	# Clique num slot do inventário = usar o item (comer)
 	hud.slot_usado.connect(_on_slot_usado)
 
+	# O "voltar ao menu inicial" da pausa. Quem troca de cena é a Main (dona
+	# do fluxo), não o menu de pausa: ele só AVISA que o jogador pediu
+	# (signal up), igual ao dormir_solicitado do Player.
+	pausa.voltar_ao_menu_solicitado.connect(ir_para_o_menu)
+
 	# Fim de jogo: quem avisa é o Status (a barra encostou no zero); quem
 	# decide o que fazer com isso é a Main (call down, signal up).
 	Status.sanidade_zerada.connect(game_over)
@@ -363,6 +369,11 @@ func _process(delta: float) -> void:
 		_atualizar_dialogo()
 		return  # e nada de fantasma de construção ao mesmo tempo
 
+	# "Tinha algo na mão" = o Esc deste frame vai ser gasto cancelando isso
+	# (ver o bloco do Esc, no fim do _process). Precisa ser lido ANTES, porque
+	# os blocos abaixo são justamente os que mexem nesses valores.
+	var tinha_modo_em_mao: bool = largando or fantasma != null
+
 	# --- Modo de construção: a prévia (fantasma) segue o jogador ---
 	if fantasma != null:
 		# O fantasma fica sempre um pouco à frente do jogador
@@ -396,6 +407,15 @@ func _process(delta: float) -> void:
 			if tempo_do_recado_de_largar <= 0.0:
 				tempo_do_recado_de_largar = INTERVALO_RECADO_LARGAR
 				hud.mostrar_aviso(RECADO_LARGAR)
+
+	# --- ESC: abre o menu de pausa ---
+	# Ele vem POR ÚLTIMO de propósito: se o Esc deste frame já foi gasto
+	# cancelando a construção ou o modo largar (os blocos acima), quem manda é
+	# o que estava na mão do jogador. Ninguém quer abrir o menu no MESMO Esc
+	# que cancelou uma fogueira — daí a checagem de "tinha algo na mão", que
+	# foi lida lá em cima, antes dos blocos mexerem nesses valores.
+	if Input.is_action_just_pressed("ui_cancel") and _pode_abrir_a_pausa(tinha_modo_em_mao):
+		pausa.abrir()
 
 # =====================================================================
 # DICAS DE PRIMEIRA VEZ (o tutorial do inventário)
@@ -931,6 +951,46 @@ func game_over() -> void:
 	# Recomeça do zero (ver o comentário acima sobre o Autoload)
 	Status.reiniciar()
 	get_tree().reload_current_scene()
+
+
+# =====================================================================
+# VOLTAR AO MENU INICIAL (o pedido da pausa)
+# =====================================================================
+# Mesma ideia do recomeço do game over logo acima: o Status é Autoload e
+# sobrevive à troca de cena, então ele volta ao zero AQUI — senão a partida
+# nova nasceria com a fome e a sanidade da anterior.
+#
+# E a árvore precisa estar DESPAUSADA antes de trocar de cena: o `paused` é
+# do SceneTree, não da cena. Como o jogador pede o menu justamente de dentro
+# da pausa, se ele ficasse ligado o menu inicial nasceria CONGELADO — botões
+# sem responder e ninguém pra despausar.
+func ir_para_o_menu() -> void:
+	Status.reiniciar()
+	get_tree().paused = false
+	get_tree().change_scene_to_file("res://cenas/Menu.tscn")
+
+
+# Quem pode abrir a pausa (chamado no fim do _process, o último da fila do Esc).
+func _pode_abrir_a_pausa(tinha_modo_em_mao: bool) -> bool:
+	# O Esc deste frame já foi gasto cancelando o que estava na mão
+	if tinha_modo_em_mao or largando or fantasma != null:
+		return false
+
+	if jogador == null:
+		return false
+
+	# Game over: o único caminho de saída de lá era o E (recomeçar). Com o
+	# menu, o Esc também abre a pausa — é como o jogador volta pro menu
+	# inicial sem ter que jogar a partida inteira de novo.
+	if acabou_o_jogo:
+		return true
+
+	# Abertura, cutscene do avião, cutscene de terror e sono: o John está
+	# preso numa cena. Ele nem pode andar — não é hora de menu.
+	if jogador.em_cena or dormindo:
+		return false
+
+	return true
 
 
 # =====================================================================
