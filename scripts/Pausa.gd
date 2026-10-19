@@ -24,8 +24,6 @@ extends CanvasLayer
 # Player (call down, signal up).
 signal voltar_ao_menu_solicitado
 
-@onready var caixa: PanelContainer = $Caixa
-
 # O frame em que a pausa abriu. O Esc que ABRE não pode fechar no mesmo
 # frame: os dois leem o mesmo Input no mesmo process. É exatamente o cuidado
 # que o _atualizar_dialogo, na Main, tem com o E da conversa.
@@ -33,17 +31,21 @@ var _frame_do_esc: int = -1
 
 
 func _ready() -> void:
-	# Nasce fechado: só aparece quando a Main chama o abrir()
-	caixa.visible = false
+	# Nasce fechado INTEIRO: `visible` na CanvasLayer esconde o Escurecer e a
+	# Caixa de uma vez. Cuidado que já custou uma gameplay escura: esconder só
+	# a Caixa deixava o Escurecer (um ColorRect de tela cheia) ligado por cima
+	# do jogo desde o primeiro frame — uma máscara de 78% de preto no jogo
+	# todo. A camada é a dona dos dois: quem manda nela, manda em tudo.
+	visible = false
 
 
 ## Abre o menu e congela o jogo. Chamado pela Main, de dentro do _process.
 func abrir() -> void:
-	if caixa.visible:
+	if visible:
 		return  # dois Esc no mesmo frame não abrem duas vezes
 
 	_frame_do_esc = Engine.get_process_frames()
-	caixa.visible = true
+	visible = true
 	get_tree().paused = true
 
 
@@ -52,15 +54,15 @@ func abrir() -> void:
 ## cena, porque o `paused` é do SceneTree e não da cena: se ficasse ligado, o
 ## menu inicial nasceria congelado.
 func fechar() -> void:
-	if not caixa.visible:
+	if not visible:
 		return
 
-	caixa.visible = false
+	visible = false
 	get_tree().paused = false
 
 
 func _process(_delta: float) -> void:
-	if not caixa.visible:
+	if not visible:
 		return
 	if Engine.get_process_frames() == _frame_do_esc:
 		return  # este Esc é o que acabou de abrir o menu

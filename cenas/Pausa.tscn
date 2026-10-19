@@ -68,6 +68,7 @@ corner_radius_bottom_left = 8
 
 [node name="Pausa" type="CanvasLayer"]
 process_mode = 2
+visible = false
 layer = 130
 script = ExtResource("1_pausa")
 
